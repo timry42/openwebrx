@@ -1,6 +1,7 @@
 from owrx.config.core import CoreConfig
 from owrx.config.migration import Migrator
 from owrx.property import PropertyLayer, PropertyDeleted
+from owrx.active.list import ActiveList
 from owrx.jsons import Encoder
 import json
 
@@ -11,23 +12,21 @@ class DynamicConfig(PropertyLayer):
         try:
             with open(DynamicConfig._getSettingsFile(), "r") as f:
                 for k, v in json.load(f).items():
-                    if isinstance(v, dict):
-                        self[k] = DynamicConfig._toLayer(v)
-                    else:
-                        self[k] = v
+                    self[k] = DynamicConfig._toValue(v)
         except FileNotFoundError:
             pass
         Migrator.migrate(self)
 
     @staticmethod
-    def _toLayer(dictionary: dict):
-        layer = PropertyLayer()
-        for k, v in dictionary.items():
-            if isinstance(v, dict):
-                layer[k] = DynamicConfig._toLayer(v)
-            else:
-                layer[k] = v
-        return layer
+    def _toValue(value):
+        if isinstance(value, dict):
+            layer = PropertyLayer()
+            for k, v in value.items():
+                layer[k] = DynamicConfig._toValue(v)
+            return layer
+        if isinstance(value, list):
+            return ActiveList(value)
+        return value
 
     @staticmethod
     def _getSettingsFile():
