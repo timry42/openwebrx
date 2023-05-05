@@ -23,7 +23,7 @@ class Resampler(SdrSource):
 
         self.chain.setReader(sdr.getBuffer().getReader())
 
-        super().__init__(None, props)
+        super().__init__(props)
 
     def getBuffer(self):
         if self.buffer is None:

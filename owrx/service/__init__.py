@@ -8,6 +8,7 @@ from owrx.property import PropertyLayer, PropertyDeleted
 from owrx.service.schedule import ServiceScheduler
 from owrx.service.chain import ServiceDemodulatorChain
 from owrx.modes import Modes, DigitalMode
+from owrx.active.list import ActiveListListener, ActiveListChange, ActiveListIndexDeleted, ActiveListIndexAdded
 from typing import Union, Optional
 from csdr.chain.demodulator import BaseDemodulatorChain, ServiceDemodulator, DialFrequencyReceiver
 from pycsdr.modules import Buffer
@@ -313,6 +314,26 @@ class ServiceHandler(SdrSourceEventClient):
         raise ValueError("unsupported service modulation: {}".format(mod))
 
 
+class SdrDeviceEventHandler(ActiveListListener):
+
+    def onListChange(self, changes: list[ActiveListChange]):
+        for change in changes:
+            if isinstance(change, ActiveListIndexDeleted):
+                key = change.oldValue.getId()
+                if key in Services.handlers:
+                    Services.handlers[key].shutdown()
+                    del Services.handlers[key]
+                if key in Services.schedulers:
+                    Services.schedulers[key].shutdown()
+                    del Services.schedulers[key]
+            elif isinstance(change, ActiveListIndexAdded):
+                source = change.newValue
+                key = source.getId()
+                Services.schedulers[key] = ServiceScheduler(source)
+                if Config.get()["services_enabled"]:
+                    Services.handlers[key] = ServiceHandler(source)
+
+
 class Services(object):
     handlers = {}
     schedulers = {}
@@ -322,34 +343,19 @@ class Services(object):
         config = Config.get()
         config.wireProperty("services_enabled", Services._receiveEnabledEvent)
         activeSources = SdrService.getActiveSources()
-        activeSources.wire(Services._receiveDeviceEvent)
-        for key, source in activeSources.items():
-            Services.schedulers[key] = ServiceScheduler(source)
+        activeSources.addListener(SdrDeviceEventHandler())
+        for source in activeSources:
+            Services.schedulers[source.getId()] = ServiceScheduler(source)
 
     @staticmethod
     def _receiveEnabledEvent(state):
         if state:
-            for key, source in SdrService.getActiveSources().__dict__().items():
-                Services.handlers[key] = ServiceHandler(source)
+            for source in SdrService.getActiveSources():
+                Services.handlers[source.getId()] = ServiceHandler(source)
         else:
             for handler in list(Services.handlers.values()):
                 handler.shutdown()
             Services.handlers = {}
-
-    @staticmethod
-    def _receiveDeviceEvent(changes):
-        for key, source in changes.items():
-            if source is PropertyDeleted:
-                if key in Services.handlers:
-                    Services.handlers[key].shutdown()
-                    del Services.handlers[key]
-                if key in Services.schedulers:
-                    Services.schedulers[key].shutdown()
-                    del Services.schedulers[key]
-            else:
-                Services.schedulers[key] = ServiceScheduler(source)
-                if Config.get()["services_enabled"]:
-                    Services.handlers[key] = ServiceHandler(source)
 
     @staticmethod
     def stop():

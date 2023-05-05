@@ -7,9 +7,9 @@ from pycsdr.types import Format
 
 
 class DirectSource(SdrSource, metaclass=ABCMeta):
-    def __init__(self, id, props):
+    def __init__(self, props):
         self._conversion = None
-        super().__init__(id, props)
+        super().__init__(props)
 
     def onPropertyChange(self, changes):
         self.logger.debug("restarting sdr source due to property changes: {0}".format(changes))

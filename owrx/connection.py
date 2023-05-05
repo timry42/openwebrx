@@ -167,8 +167,9 @@ class OpenWebRxReceiverClient(OpenWebRxClient, SdrSourceEventClient):
         modes = Modes.getModes()
         self.write_modes(modes)
 
-        self.configSubs.append(SdrService.getActiveSources().wire(self._onSdrDeviceChanges))
-        self.configSubs.append(SdrService.getAvailableProfiles().wire(self._sendProfiles))
+        # TODO find an alternate solution
+        #self.configSubs.append(SdrService.getActiveSources().wire(self._onSdrDeviceChanges))
+        #self.configSubs.append(SdrService.getAvailableProfiles().wire(self._sendProfiles))
         self._sendProfiles()
 
         CpuUsageThread.getSharedInstance().add_client(self)
@@ -266,7 +267,7 @@ class OpenWebRxReceiverClient(OpenWebRxClient, SdrSourceEventClient):
             self.setSdr()
 
     def _sendProfiles(self, *args):
-        profiles = [{"id": pid, "name": name} for pid, name in SdrService.getAvailableProfiles().items()]
+        profiles = SdrService.getAvailableProfiles()
         self.write_profiles(profiles)
 
     def handleTextMessage(self, conn, message):

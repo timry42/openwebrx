@@ -12,6 +12,7 @@ from owrx.command import CommandMapper
 from owrx.socket import getAvailablePort
 from owrx.property import PropertyStack, PropertyLayer, PropertyFilter, PropertyCarousel, PropertyDeleted
 from owrx.property.filter import ByLambda
+from owrx.active.list import ActiveListListener, ActiveListChange, ActiveListIndexAdded
 from owrx.form.input import Input, TextInput, NumberInput, CheckboxInput, ModesInput, ExponentialInput
 from owrx.form.input.converter import OptionalConverter
 from owrx.form.input.device import GainInput, SchedulerInput, WaterfallLevelsInput
@@ -76,18 +77,30 @@ class SdrSourceEventClient(object):
         return SdrClientClass.INACTIVE
 
 
+class SdrProfileCarouselListener(ActiveListListener):
+    def __init__(self, carousel):
+        self.carousel = carousel
+
+    def onListChange(self, changes: list[ActiveListChange]):
+        for change in changes:
+            # TODO: respond to deletions and updates
+            if isinstance(change, ActiveListIndexAdded):
+                profile = change.newValue
+                self.carousel.addLayer(profile["id"], profile)
+
+
 class SdrProfileCarousel(PropertyCarousel):
     def __init__(self, props):
         super().__init__()
         if "profiles" not in props:
             return
 
-        for profile_id, profile in props["profiles"].items():
-            self.addLayer(profile_id, profile)
+        for profile in props["profiles"]:
+            self.addLayer(profile["id"], profile)
         # activate first available profile
         self.switch()
 
-        props["profiles"].wire(self.handleProfileUpdate)
+        props["profiles"].addListener(SdrProfileCarouselListener(self))
 
     def addLayer(self, profile_id, profile):
         profile_stack = PropertyStack()
@@ -110,13 +123,13 @@ class SdrProfileCarousel(PropertyCarousel):
 
 
 class SdrSource(ABC):
-    def __init__(self, id, props):
-        self.id = id
+    def __init__(self, props):
+        self.id = props["id"] if "id" in props else None
 
         self.commandMapper = None
         self.tcpSource = None
         self.buffer = None
-        self.logger = logger.getChild(id) if id is not None else logger
+        self.logger = logger.getChild(self.id) if self.id is not None else logger
         self.logger.addHandler(HistoryHandler.getHandler(self.logger.name))
         self.stdoutPipe = None
         self.stderrPipe = None
@@ -188,20 +201,20 @@ class SdrSource(ABC):
     def validateProfiles(self):
         props = PropertyStack()
         props.addLayer(1, self.props)
-        for id, p in self.props["profiles"].items():
+        for p in self.props["profiles"]:
             props.replaceLayer(0, p)
             if "center_freq" not in props:
-                self.logger.warning('Profile "%s" does not specify a center_freq', id)
+                self.logger.warning('Profile "%s" does not specify a center_freq', p["id"])
                 continue
             if "samp_rate" not in props:
-                self.logger.warning('Profile "%s" does not specify a samp_rate', id)
+                self.logger.warning('Profile "%s" does not specify a samp_rate', p["id"])
                 continue
             if "start_freq" in props:
                 start_freq = props["start_freq"]
                 srh = props["samp_rate"] / 2
                 center_freq = props["center_freq"]
                 if start_freq < center_freq - srh or start_freq > center_freq + srh:
-                    self.logger.warning('start_freq for profile "%s" is out of range', id)
+                    self.logger.warning('start_freq for profile "%s" is out of range', p["id"])
 
     def isAlwaysOn(self):
         return "always-on" in self.props and self.props["always-on"]
@@ -232,10 +245,11 @@ class SdrSource(ABC):
 
     def activateProfile(self, profile_id):
         try:
-            profile_name = self.getProfiles()[profile_id]["name"]
+            profile = next(p for p in self.getProfiles() if p["id"] == profile_id)
+            profile_name = profile["name"]
             self.logger.debug("activating profile \"%s\" for \"%s\"", profile_name, self.getName())
             self.profileCarousel.switch(profile_id)
-        except KeyError:
+        except StopIteration:
             self.logger.warning("invalid profile %s for sdr %s. ignoring", profile_id, self.getId())
 
     def getId(self):

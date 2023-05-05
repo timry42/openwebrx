@@ -8,10 +8,10 @@ from owrx.form.input import Input, NumberInput, CheckboxInput
 
 
 class ConnectorSource(SdrSource):
-    def __init__(self, id, props):
+    def __init__(self, props):
         self.controlSocket = None
         self.controlPort = getAvailablePort()
-        super().__init__(id, props)
+        super().__init__(props)
 
     def getCommandMapper(self):
         return (
