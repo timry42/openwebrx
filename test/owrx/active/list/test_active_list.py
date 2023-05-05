@@ -121,3 +121,30 @@ class ActiveListTest(TestCase):
         transformedList = list.map(lambda x: "prefix-{}".format(x))
         del list[0]
         self.assertEqual(transformedList[0], "prefix-value2")
+
+    def testFilter(self):
+        list = ActiveList([1, 2, 3, 4, 5])
+        filteredList = list.filter(lambda x: x < 3)
+        self.assertEqual(len(filteredList), 2)
+        self.assertEqual(filteredList[0], 1)
+        self.assertEqual(filteredList[1], 2)
+
+    def testActiveFilterAppend(self):
+        list = ActiveList([1, 2, 3, 4, 5])
+        filteredList = list.filter(lambda x: x < 3)
+        list.append(0)
+        self.assertEqual(len(filteredList), 3)
+        self.assertEqual(filteredList[2], 0)
+
+    def testActiveFilterUpdate(self):
+        list = ActiveList([1, 2, 3, 4, 5])
+        filteredList = list.filter(lambda x: x < 3)
+        list[3] = 0
+        self.assertEqual(len(filteredList), 3)
+        self.assertEqual(filteredList[2], 0)
+
+    def testActiveFilterDelete(self):
+        list = ActiveList([1, 2, 3, 4, 5])
+        filteredList = list.filter(lambda x: x < 3)
+        del list[1]
+        self.assertEqual(len(filteredList), 1)
