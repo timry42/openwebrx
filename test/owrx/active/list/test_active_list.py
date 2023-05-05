@@ -1,4 +1,4 @@
-from owrx.active.list import ActiveList, ActiveListIndexUpdated, ActiveListIndexAppended, ActiveListIndexDeleted
+from owrx.active.list import ActiveList, ActiveListIndexUpdated, ActiveListIndexAppended, ActiveListIndexDeleted, ActiveListIndexInserted
 from unittest import TestCase
 from unittest.mock import Mock
 
@@ -82,6 +82,24 @@ class ActiveListTest(TestCase):
         self.assertEqual(len(list), 1)
         self.assertEqual(list[0], "value2")
 
+    def testListInsert(self):
+        list = ActiveList(["value1", "value2"])
+        list.insert(1, "value1.5")
+        self.assertEqual(len(list), 3)
+        self.assertEqual(list[1], "value1.5")
+
+    def testListInsertNotification(self):
+        list = ActiveList(["value1", "value2"])
+        listenerMock = Mock()
+        list.addListener(listenerMock)
+        list.insert(1, "value1.5")
+        listenerMock.onListChange.assert_called_once()
+        changes, = listenerMock.onListChange.call_args.args
+        self.assertEqual(len(changes), 1)
+        self.assertIsInstance(changes[0], ActiveListIndexInserted)
+        self.assertEqual(changes[0].index, 1)
+        self.assertEqual(changes[0].newValue, "value1.5")
+
     def testListComprehension(self):
         list = ActiveList(["initialvalue"])
         x = [m for m in list]
@@ -142,6 +160,13 @@ class ActiveListTest(TestCase):
         list[3] = 0
         self.assertEqual(len(filteredList), 3)
         self.assertEqual(filteredList[2], 0)
+
+    def testActiveFilterUpdatePreservesSequence(self):
+        list = ActiveList([0, 9, 8, 2, 7, 1, 5])
+        filteredList = list.filter(lambda x: x < 3)
+        list[1] = 1
+        self.assertEqual(len(filteredList), 4)
+        self.assertEqual(filteredList[1], 1)
 
     def testActiveFilterDelete(self):
         list = ActiveList([1, 2, 3, 4, 5])

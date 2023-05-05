@@ -27,6 +27,12 @@ class ActiveListIndexDeleted(ActiveListChange):
         self.oldValue = oldValue
 
 
+class ActiveListIndexInserted(ActiveListChange):
+    def __init__(self, index: int, newValue):
+        self.index = index
+        self.newValue = newValue
+
+
 class ActiveListListener(ABC):
     @abstractmethod
     def onListChange(self, changes: list[ActiveListChange]):
@@ -66,9 +72,9 @@ class ActiveListFilterListener(ActiveListListener):
                     del self.target[idx]
                     del self.keyMap[idx]
                 elif change.index not in self.keyMap and self.filter(change.newValue):
-                    # TODO insert, not append
-                    self.target.append(change.newValue)
-                    self.keyMap.append(len(self.target) - 1)
+                    idx = len([x for x in self.keyMap if x < change.index])
+                    self.target.insert(idx, change.newValue)
+                    self.keyMap.insert(idx, change.index)
             elif isinstance(change, ActiveListIndexDeleted):
                 if change.index in self.keyMap:
                     idx = self.keyMap.index(change.index)
@@ -104,6 +110,10 @@ class ActiveList:
 
     def remove(self, value):
         self.__delitem__(self.delegate.index(value))
+
+    def insert(self, index, value):
+        self.delegate.insert(index, value)
+        self.__fireChanges([ActiveListIndexInserted(index, value)])
 
     def map(self, transform: callable):
         res = ActiveList([transform(v) for v in self])
