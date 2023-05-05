@@ -15,22 +15,26 @@ class ActiveListIndexUpdated(ActiveListChange):
         self.newValue = newValue
 
 
-class ActiveListIndexAppended(ActiveListChange):
+class ActiveListIndexAdded(ActiveListChange):
     def __init__(self, index: int, newValue):
         self.index = index
         self.newValue = newValue
+
+
+# not sure if differentiation between append and insert is necessary, but we'll offer it for now
+# most cases will probably be happy with ActiveListIndexAdded above
+class ActiveListIndexAppended(ActiveListIndexAdded):
+    pass
+
+
+class ActiveListIndexInserted(ActiveListIndexAdded):
+    pass
 
 
 class ActiveListIndexDeleted(ActiveListChange):
     def __init__(self, index: int, oldValue):
         self.index = index
         self.oldValue = oldValue
-
-
-class ActiveListIndexInserted(ActiveListChange):
-    def __init__(self, index: int, newValue):
-        self.index = index
-        self.newValue = newValue
 
 
 class ActiveListListener(ABC):
@@ -48,8 +52,8 @@ class ActiveListTransformationListener(ActiveListListener):
         for change in changes:
             if isinstance(change, ActiveListIndexUpdated):
                 self.target[change.index] = self.transformation(change.newValue)
-            elif isinstance(change, ActiveListIndexAppended):
-                self.target.append(self.transformation(change.newValue))
+            elif isinstance(change, ActiveListIndexAdded):
+                self.target.insert(change.index, self.transformation(change.newValue))
             elif isinstance(change, ActiveListIndexDeleted):
                 del self.target[change.index]
 
@@ -62,10 +66,11 @@ class ActiveListFilterListener(ActiveListListener):
 
     def onListChange(self, changes: list[ActiveListChange]):
         for change in changes:
-            if isinstance(change, ActiveListIndexAppended):
+            if isinstance(change, ActiveListIndexAdded):
                 if self.filter(change.newValue):
-                    self.target.append(change.newValue)
-                    self.keyMap.append(len(self.target) - 1)
+                    idx = len([x for x in self.keyMap if x < change.index])
+                    self.target.insert(idx, change.newValue)
+                    self.keyMap.insert(idx, change.index)
             elif isinstance(change, ActiveListIndexUpdated):
                 if change.index in self.keyMap and not self.filter(change.newValue):
                     idx = self.keyMap.index(change.index)
