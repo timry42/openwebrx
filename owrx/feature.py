@@ -80,6 +80,7 @@ class FeatureDetector(object):
         "wsjt-x": ["wsjtx"],
         "wsjt-x-2-3": ["wsjtx_2_3"],
         "wsjt-x-2-4": ["wsjtx_2_4"],
+        "msk144": ["msk144decoder"],
         "packet": ["direwolf"],
         "pocsag": ["digiham"],
         "js8call": ["js8", "js8py"],
@@ -261,7 +262,7 @@ class FeatureDetector(object):
             return False
 
     def _check_owrx_connector(self, command):
-        return self._check_connector(command, LooseVersion("0.5"))
+        return self._check_connector(command, LooseVersion("0.7"))
 
     def has_rtl_connector(self):
         """
@@ -292,14 +293,10 @@ class FeatureDetector(object):
 
     def _has_soapy_driver(self, driver):
         try:
-            process = subprocess.Popen(["SoapySDRUtil", "--info"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-            factory_regex = re.compile("^Available factories\\.\\.\\. ?(.*)$")
+            process = subprocess.Popen(["soapy_connector", "--listdrivers"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
 
-            drivers = []
-            for line in process.stdout:
-                matches = factory_regex.match(line.decode())
-                if matches:
-                    drivers = [s.strip() for s in matches.group(1).split(", ")]
+            drivers = [line.decode().strip() for line in process.stdout]
+            process.wait(1)
 
             return driver in drivers
         except FileNotFoundError:
@@ -428,7 +425,7 @@ class FeatureDetector(object):
     def has_wsjtx(self):
         """
         To decode FT8 and other digimodes, you need to install the WSJT-X software suite. Please check the
-        [WSJT-X homepage](https://physics.princeton.edu/pulsar/k1jt/wsjtx.html) for ready-made packages or instructions
+        [WSJT-X homepage](https://wsjt.sourceforge.io/) for ready-made packages or instructions
         on how to build from source.
         """
         return reduce(and_, map(self.command_is_runnable, ["jt9", "wsprd"]), True)
@@ -458,6 +455,13 @@ class FeatureDetector(object):
         WSJT-X version 2.4 introduced the Q65 mode.
         """
         return self.has_wsjtx() and self._has_wsjtx_version(LooseVersion("2.4"))
+
+    def has_msk144decoder(self):
+        """
+        To decode the MSK144 digimode please install the "msk144decoder". See the
+        [project page](https://github.com/alexander-sholohov/msk144decoder) for more details.
+        """
+        return self.command_is_runnable("msk144decoder")
 
     def has_js8(self):
         """

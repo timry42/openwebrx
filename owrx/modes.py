@@ -55,6 +55,13 @@ class DigitalMode(Mode):
     def get_modulation(self):
         return self.get_underlying_mode().get_modulation()
 
+    def for_underlying(self, underlying: str):
+        if underlying not in self.underlying:
+            raise ValueError("{} is not a valid underlying mode for {}".format(underlying, self.modulation))
+        return DigitalMode(
+            self.modulation, self.name, [underlying], self.bandpass, self.requirements, self.service, self.squelch
+        )
+
 
 class AudioChopperMode(DigitalMode, metaclass=ABCMeta):
     def __init__(self, modulation, name, bandpass=None, requirements=None):
@@ -120,6 +127,7 @@ class Modes(object):
         WsjtMode("fst4", "FST4", requirements=["wsjt-x-2-3"]),
         WsjtMode("fst4w", "FST4W", bandpass=Bandpass(1350, 1650), requirements=["wsjt-x-2-3"]),
         WsjtMode("q65", "Q65", requirements=["wsjt-x-2-4"]),
+        DigitalMode("msk144", "MSK144", requirements=["msk144"], underlying=["usb"], service=True),
         Js8Mode("js8", "JS8Call"),
         DigitalMode(
             "packet",
