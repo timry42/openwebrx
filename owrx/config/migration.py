@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from owrx.property import PropertyLayer
+from owrx.active.list import ActiveList
 
 import logging
 
@@ -124,8 +125,28 @@ class ConfigMigratorVersion7(ConfigMigrator):
         config["version"] = 8
 
 
+class ConfigMigratorVersion8(ConfigMigrator):
+    def migrate(self, config):
+        if "sdrs" in config:
+            sdrs = config["sdrs"]
+            if not isinstance(sdrs, ActiveList):
+                sdrs = ActiveList()
+                for key, device in config["sdrs"].items():
+                    device["id"] = key
+                    sdrs.append(device)
+                config["sdrs"] = sdrs
+            for device in sdrs:
+                if "profiles" in device and not isinstance(device["profiles"], ActiveList):
+                    profiles = ActiveList()
+                    for key, profile in device["profiles"].items():
+                        profile["id"] = key
+                        profiles.append(profile)
+                    device["profiles"] = profiles
+        config["version"] = 9
+
+
 class Migrator(object):
-    currentVersion = 8
+    currentVersion = 9
     migrators = {
         1: ConfigMigratorVersion1(),
         2: ConfigMigratorVersion2(),
@@ -134,6 +155,7 @@ class Migrator(object):
         5: ConfigMigratorVersion5(),
         6: ConfigMigratorVersion6(),
         7: ConfigMigratorVersion7(),
+        8: ConfigMigratorVersion8(),
     }
 
     @staticmethod
