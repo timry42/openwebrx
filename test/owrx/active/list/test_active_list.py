@@ -173,3 +173,12 @@ class ActiveListTest(TestCase):
         filteredList = list.filter(lambda x: x < 3)
         del list[1]
         self.assertEqual(len(filteredList), 1)
+
+    def testFlatten(self):
+        list = ActiveList([[1, 2], [3, 4]])
+        flattenedList = list.flatten()
+        self.assertEqual(len(flattenedList), 4)
+        self.assertEqual(flattenedList[0], 1)
+        self.assertEqual(flattenedList[1], 2)
+        self.assertEqual(flattenedList[2], 3)
+        self.assertEqual(flattenedList[3], 4)

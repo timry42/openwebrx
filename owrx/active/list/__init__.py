@@ -130,6 +130,11 @@ class ActiveList:
         self.addListener(ActiveListFilterListener(filter, keyMap, res))
         return res
 
+    def flatten(self):
+        res = ActiveList([y for x in self for y in x])
+        # TODO handle events
+        return res
+
     def __setitem__(self, key, value):
         if self.delegate[key] == value:
             return
@@ -150,3 +155,6 @@ class ActiveList:
 
     def __iter__(self):
         return self.delegate.__iter__()
+
+    def __list__(self):
+        return [x for x in self.delegate]
