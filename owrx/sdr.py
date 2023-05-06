@@ -1,5 +1,6 @@
 from owrx.config import Config
 from owrx.source import SdrSource
+from owrx.feature import FeatureDetector, UnknownFeatureException
 
 import logging
 
@@ -20,8 +21,7 @@ class SdrService(object):
         return sources[0]
 
     @staticmethod
-    def getSource(id):
-        sources = SdrService.getActiveSources()
+    def _findSource(sources, id):
         if not sources:
             return None
         try:
@@ -30,7 +30,38 @@ class SdrService(object):
             return None
 
     @staticmethod
+    def getActiveSource(id):
+        return SdrService._findSource(SdrService.getActiveSources(), id)
+
+    @staticmethod
+    def getSource(id):
+        return SdrService._findSource(SdrService.getAllSources(), id)
+
+    @staticmethod
     def getAllSources():
+        def isDeviceValid(device):
+            return sdrTypeAvailable(device) and hasProfiles(device)
+
+        def hasProfiles(device):
+            return "profiles" in device and device["profiles"] and len(device["profiles"]) > 0
+
+        def sdrTypeAvailable(value):
+            featureDetector = FeatureDetector()
+            try:
+                if not featureDetector.is_available(value["type"]):
+                    logger.error(
+                        'The SDR source type "{0}" is not available. please check the feature report for details.'.format(
+                            value["type"]
+                        )
+                    )
+                    return False
+                return True
+            except UnknownFeatureException:
+                logger.error(
+                    'The SDR source type "{0}" is invalid. Please check your configuration'.format(value["type"])
+                )
+                return False
+
         def buildNewSource(props):
             sdrType = props["type"]
             className = "".join(x for x in sdrType.title() if x.isalnum()) + "Source"
@@ -39,7 +70,7 @@ class SdrService(object):
             return cls(props)
 
         if SdrService.sources is None:
-            SdrService.sources = Config.get()["sdrs"].map(buildNewSource)
+            SdrService.sources = Config.get()["sdrs"].filter(isDeviceValid).map(buildNewSource)
         return SdrService.sources
 
     @staticmethod

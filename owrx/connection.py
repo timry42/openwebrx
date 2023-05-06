@@ -309,7 +309,7 @@ class OpenWebRxReceiverClient(OpenWebRxClient, SdrSourceEventClient):
     def setSdr(self, id=None):
         next = None
         if id is not None:
-            next = SdrService.getSource(id)
+            next = SdrService.getActiveSource(id)
         if next is None:
             next = SdrService.getFirstSource()
 

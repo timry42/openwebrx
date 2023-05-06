@@ -198,11 +198,11 @@ class SchedulerInput(Input):
             """
                 <option value="{id}" {selected}>{name}</option>
             """.format(
-                id=p_id,
+                id=p["id"],
                 name=p["name"],
-                selected="selected" if stage_value == p_id else "",
+                selected="selected" if stage_value == p["id"] else "",
             )
-            for p_id, p in self.profiles.items()
+            for p in self.profiles
         )
 
         if allow_empty:

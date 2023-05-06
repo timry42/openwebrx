@@ -36,16 +36,15 @@ class SdrDeviceListController(AuthorizationMixin, BreadcrumbMixin, WebpageContro
         return SdrDeviceBreadcrumb()
 
     def render_devices(self):
-        def render_device(device_id, config):
-            sources = SdrService.getAllSources()
-            source = sources[device_id] if device_id in sources else None
+        def render_device(config):
+            device_id = config["id"]
+            source = SdrService.getSource(device_id)
 
             additional_info = ""
             state_info = "Unknown"
 
             if source is not None:
-                profiles = source.getProfiles()
-                currentProfile = profiles[source.getProfileId()]
+                currentProfile = source.getCurrentProfile()
                 clients = {c: len(source.getClients(c)) for c in SdrClientClass}
                 clients = {c: v for c, v in clients.items() if v}
                 connections = len([c for c in source.getClients() if isinstance(c, OpenWebRxReceiverClient)])
@@ -100,7 +99,7 @@ class SdrDeviceListController(AuthorizationMixin, BreadcrumbMixin, WebpageContro
                 <a class="btn btn-success" href="newsdr">Add new device...</a>
             </div>
         """.format(
-            devices="".join(render_device(key, value) for key, value in Config.get()["sdrs"].items())
+            devices="".join(render_device(value) for value in Config.get()["sdrs"])
         )
 
     def indexAction(self):
@@ -150,12 +149,12 @@ class SdrFormController(SettingsFormController, metaclass=ABCMeta):
                     </li>
                 """.format(
                     profile_link="{}settings/sdr/{}/profile/{}".format(
-                        self.get_document_root(), quote(self.device_id), quote(profile_id)
+                        self.get_document_root(), quote(self.device_id), quote(profile["id"])
                     ),
                     profile_name=profile["name"] if profile["name"] else "[Unnamed profile]",
-                    profile_active="active" if self.isProfileActive(profile_id) else "",
+                    profile_active="active" if self.isProfileActive(profile["id"]) else "",
                 )
-                for profile_id, profile in self.device["profiles"].items()
+                for profile in self.device["profiles"]
             ),
         )
 
@@ -172,6 +171,7 @@ class SdrFormController(SettingsFormController, metaclass=ABCMeta):
         # need to overwrite the existing key in the config since the layering won't capture the changes otherwise
         config = Config.get()
         sdrs = config["sdrs"]
+        # TODO dict -> array structure
         sdrs[self.device_id] = self.device
         config["sdrs"] = sdrs
         super().store()
@@ -179,9 +179,11 @@ class SdrFormController(SettingsFormController, metaclass=ABCMeta):
     def _get_device(self):
         config = Config.get()
         device_id = unquote(self.request.matches.group(1))
-        if device_id not in config["sdrs"]:
+        try:
+            device = next(d for d in config["sdrs"] if d["id"] == device_id)
+            return device_id, device
+        except StopIteration:
             return None, None
-        return device_id, config["sdrs"][device_id]
 
 
 class SdrFormControllerWithModal(SdrFormController, metaclass=ABCMeta):
@@ -274,6 +276,7 @@ class SdrDeviceController(SdrFormControllerWithModal):
             return self.send_response("device not found", code=404)
         config = Config.get()
         sdrs = config["sdrs"]
+        # TODO dict -> array structure
         del sdrs[self.device_id]
         # need to overwrite the existing key in the config since the layering won't capture the changes otherwise
         config["sdrs"] = sdrs
@@ -332,8 +335,9 @@ class NewSdrDeviceController(SettingsFormController):
         config = Config.get()
         sdrs = config["sdrs"]
         # a uuid should be unique, so i'm not sure if there's a point in this check
-        if self.device_id in sdrs:
+        if any(device["id"] == self.device_id for device in sdrs):
             raise ValueError("device {} already exists!".format(self.device_id))
+        # TODO dict -> array structure
         sdrs[self.device_id] = self.data_layer
         config["sdrs"] = sdrs
         super().store()
@@ -365,9 +369,11 @@ class SdrProfileController(SdrFormControllerWithModal):
         if self.device is None:
             return None
         profile_id = unquote(self.request.matches.group(2))
-        if profile_id not in self.device["profiles"]:
+        try:
+            profile = next(p for p in self.device["profiles"] if p["id"] == profile_id)
+            return profile_id, profile
+        except StopIteration:
             return None
-        return profile_id, self.device["profiles"][profile_id]
 
     def isProfileActive(self, profile_id) -> bool:
         return profile_id == self.profile_id

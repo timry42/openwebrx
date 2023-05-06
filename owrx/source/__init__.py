@@ -245,22 +245,28 @@ class SdrSource(ABC):
         return [self.getCommandMapper().map(self.getCommandValues())]
 
     def activateProfile(self, profile_id):
-        try:
-            profile = next(p for p in self.getProfiles() if p["id"] == profile_id)
-            profile_name = profile["name"]
-            self.logger.debug("activating profile \"%s\" for \"%s\"", profile_name, self.getName())
-            self.profileCarousel.switch(profile_id)
-        except StopIteration:
+        profile = self.getProfile(profile_id)
+        if profile is None:
             self.logger.warning("invalid profile %s for sdr %s. ignoring", profile_id, self.getId())
+            return
+        profile_name = profile["name"]
+        self.logger.debug("activating profile \"%s\" for \"%s\"", profile_name, self.getName())
+        self.profileCarousel.switch(profile_id)
 
     def getId(self):
         return self.id
 
-    def getProfileId(self):
-        return self.props["profile_id"]
+    def getCurrentProfile(self):
+        return self.getProfile(self.props["profile_id"])
 
     def getProfiles(self):
         return self.props["profiles"]
+
+    def getProfile(self, profile_id):
+        try:
+            return next(p for p in self.getProfiles() if p["id"] == profile_id)
+        except StopIteration:
+            return None
 
     def getName(self):
         return self.props["name"]
