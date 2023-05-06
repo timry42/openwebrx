@@ -12,7 +12,7 @@ from owrx.command import CommandMapper
 from owrx.socket import getAvailablePort
 from owrx.property import PropertyStack, PropertyLayer, PropertyFilter, PropertyCarousel, PropertyDeleted
 from owrx.property.filter import ByLambda
-from owrx.active.list import ActiveListListener, ActiveListChange, ActiveListIndexAdded
+from owrx.active.list import ActiveListListener, ActiveListChange, ActiveListIndexAdded, ActiveListIndexDeleted, ActiveListIndexUpdated
 from owrx.form.input import Input, TextInput, NumberInput, CheckboxInput, ModesInput, ExponentialInput
 from owrx.form.input.converter import OptionalConverter
 from owrx.form.input.device import GainInput, SchedulerInput, WaterfallLevelsInput
@@ -83,10 +83,13 @@ class SdrProfileCarouselListener(ActiveListListener):
 
     def onListChange(self, changes: list[ActiveListChange]):
         for change in changes:
-            # TODO: respond to deletions and updates
             if isinstance(change, ActiveListIndexAdded):
-                profile = change.newValue
-                self.carousel.addLayer(profile["id"], profile)
+                self.carousel.addProfile(change.newValue)
+            elif isinstance(change, ActiveListIndexDeleted):
+                self.carousel.removeProfile(change.oldValue)
+            elif isinstance(change, ActiveListIndexUpdated):
+                self.carousel.removeProfile(change.oldValue)
+                self.carousel.addProfile(change.newValue)
 
 
 class SdrProfileCarousel(PropertyCarousel):
@@ -96,24 +99,22 @@ class SdrProfileCarousel(PropertyCarousel):
             return
 
         for profile in props["profiles"]:
-            self.addLayer(profile["id"], profile)
+            self.addProfile(profile)
         # activate first available profile
         self.switch()
 
         props["profiles"].addListener(SdrProfileCarouselListener(self))
 
-    def addLayer(self, profile_id, profile):
+    def addProfile(self, profile):
+        profile_id = profile["id"]
         profile_stack = PropertyStack()
         profile_stack.addLayer(0, PropertyLayer(profile_id=profile_id).readonly())
         profile_stack.addLayer(1, profile)
         super().addLayer(profile_id, profile_stack)
 
-    def handleProfileUpdate(self, changes):
-        for profile_id, profile in changes.items():
-            if profile is PropertyDeleted:
-                self.removeLayer(profile_id)
-            else:
-                self.addLayer(profile_id, profile)
+    def removeProfile(self, profile):
+        profile_id = profile["id"]
+        super().removeLayer(profile_id)
 
     def _getDefaultLayer(self):
         # return the first available profile, or the default empty layer if we don't have any
