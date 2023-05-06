@@ -25,7 +25,7 @@ class DynamicConfig(PropertyLayer):
                 layer[k] = DynamicConfig._toValue(v)
             return layer
         if isinstance(value, list):
-            return ActiveList(value)
+            return ActiveList([DynamicConfig._toValue(item) for item in value])
         return value
 
     @staticmethod
