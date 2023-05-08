@@ -10,6 +10,7 @@ from owrx.bands import Bandplan
 from owrx.bookmarks import Bookmarks
 from owrx.map import Map
 from owrx.property import PropertyStack, PropertyDeleted
+from owrx.active.list import ActiveList, ActiveListListener, ActiveListChange, ActiveListIndexAdded
 from owrx.modes import Modes, DigitalMode
 from owrx.config import Config
 from owrx.waterfall import WaterfallOptions
@@ -113,6 +114,24 @@ class OpenWebRxClient(Client, metaclass=ABCMeta):
         super().close(error)
 
 
+class ActiveSourceHandler(ActiveListListener):
+    def __init__(self, target: "OpenWebRxReceiverClient"):
+        self.target = target
+
+    def onListChange(self, source: ActiveList, changes: list[ActiveListChange]):
+        # restart the client if an sdr has become avaialble
+        if self.target.sdr is None and any(isinstance(c, ActiveListIndexAdded) for c in changes):
+            self.target.setSdr()
+
+
+class AvailableProfilesHandler(ActiveListListener):
+    def __init__(self, target: "OpenWebRxReceiverClient"):
+        self.target = target
+
+    def onListChange(self, source: ActiveList, changes: list[ActiveListChange]):
+        self.target.sendProfiles()
+
+
 class OpenWebRxReceiverClient(OpenWebRxClient, SdrSourceEventClient):
     sdr_config_keys = [
         "waterfall_levels",
@@ -167,10 +186,11 @@ class OpenWebRxReceiverClient(OpenWebRxClient, SdrSourceEventClient):
         modes = Modes.getModes()
         self.write_modes(modes)
 
-        # TODO find an alternate solution
-        #self.configSubs.append(SdrService.getActiveSources().wire(self._onSdrDeviceChanges))
-        #self.configSubs.append(SdrService.getAvailableProfiles().wire(self._sendProfiles))
-        self._sendProfiles()
+        self.activeSourceHandler = ActiveSourceHandler(self)
+        SdrService.getActiveSources().addListener(self.activeSourceHandler)
+        self.availableProfilesHandler = AvailableProfilesHandler(self)
+        SdrService.getAvailableProfiles().addListener(self.availableProfilesHandler)
+        self.sendProfiles()
 
         CpuUsageThread.getSharedInstance().add_client(self)
 
@@ -261,12 +281,7 @@ class OpenWebRxReceiverClient(OpenWebRxClient, SdrSourceEventClient):
     def getClientClass(self) -> SdrClientClass:
         return SdrClientClass.USER
 
-    def _onSdrDeviceChanges(self, changes):
-        # restart the client if an sdr has become available
-        if self.sdr is None and any(s is not PropertyDeleted for s in changes.values()):
-            self.setSdr()
-
-    def _sendProfiles(self, *args):
+    def sendProfiles(self, *args):
         profiles = SdrService.getAvailableProfiles()
         self.write_profiles(profiles)
 
@@ -348,6 +363,8 @@ class OpenWebRxReceiverClient(OpenWebRxClient, SdrSourceEventClient):
         self.stopDsp()
         CpuUsageThread.getSharedInstance().remove_client(self)
         ClientRegistry.getSharedInstance().removeClient(self)
+        SdrService.getActiveSources().removeListener(self.activeSourceHandler)
+        SdrService.getAvailableProfiles().removeListener(self.availableProfilesHandler)
         while self.configSubs:
             self.configSubs.pop().cancel()
         if self.bookmarkSub is not None:
