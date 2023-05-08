@@ -23,7 +23,8 @@ class ActiveListTest(TestCase):
         list.addListener(listenerMock)
         list[0] = "testvalue"
         listenerMock.onListChange.assert_called_once()
-        changes, = listenerMock.onListChange.call_args.args
+        source, changes = listenerMock.onListChange.call_args.args
+        self.assertIs(source, list)
         self.assertEqual(len(changes), 1)
         self.assertIsInstance(changes[0], ActiveListIndexUpdated)
         self.assertEqual(changes[0].index, 0)
@@ -52,7 +53,8 @@ class ActiveListTest(TestCase):
         list.addListener(listenerMock)
         list.append("testvalue")
         listenerMock.onListChange.assert_called_once()
-        changes, = listenerMock.onListChange.call_args.args
+        source, changes = listenerMock.onListChange.call_args.args
+        self.assertIs(source, list)
         self.assertEqual(len(changes), 1)
         self.assertIsInstance(changes[0], ActiveListIndexAppended)
         self.assertEqual(changes[0].index, 0)
@@ -70,7 +72,8 @@ class ActiveListTest(TestCase):
         list.addListener(listenerMock)
         del list[0]
         listenerMock.onListChange.assert_called_once()
-        changes, = listenerMock.onListChange.call_args.args
+        source, changes = listenerMock.onListChange.call_args.args
+        self.assertIs(source, list)
         self.assertEqual(len(changes), 1)
         self.assertIsInstance(changes[0], ActiveListIndexDeleted)
         self.assertEqual(changes[0].index, 0)
@@ -94,7 +97,8 @@ class ActiveListTest(TestCase):
         list.addListener(listenerMock)
         list.insert(1, "value1.5")
         listenerMock.onListChange.assert_called_once()
-        changes, = listenerMock.onListChange.call_args.args
+        source, changes = listenerMock.onListChange.call_args.args
+        self.assertIs(source, list)
         self.assertEqual(len(changes), 1)
         self.assertIsInstance(changes[0], ActiveListIndexInserted)
         self.assertEqual(changes[0].index, 1)
@@ -174,11 +178,47 @@ class ActiveListTest(TestCase):
         del list[1]
         self.assertEqual(len(filteredList), 1)
 
+    def testIndex(self):
+        list = ActiveList([1, 2, 3, 4, 5])
+        self.assertEqual(list.index(3), 2)
+
     def testFlatten(self):
-        list = ActiveList([[1, 2], [3, 4]])
+        list = ActiveList([ActiveList([1, 2]), ActiveList([3, 4])])
         flattenedList = list.flatten()
         self.assertEqual(len(flattenedList), 4)
         self.assertEqual(flattenedList[0], 1)
         self.assertEqual(flattenedList[1], 2)
         self.assertEqual(flattenedList[2], 3)
         self.assertEqual(flattenedList[3], 4)
+
+    def testActiveFlattenAdd(self):
+        sublist = ActiveList([3, 4])
+        list = ActiveList([ActiveList([1, 2]), sublist, ActiveList([6, 7])])
+        flattenedList = list.flatten()
+        sublist.append(5)
+        self.assertEqual(len(flattenedList), 7)
+        self.assertEqual(flattenedList[4], 5)
+
+    def testActiveFlattenInsert(self):
+        sublist = ActiveList([3, 5])
+        list = ActiveList([ActiveList([1, 2]), sublist, ActiveList([6, 7])])
+        flattenedList = list.flatten()
+        sublist.insert(1, 4)
+        self.assertEqual(len(flattenedList), 7)
+        self.assertEqual(flattenedList[3], 4)
+
+    def testActiveFlattenUpdate(self):
+        sublist = ActiveList([3, 9, 5])
+        list = ActiveList([ActiveList([1, 2]), sublist, ActiveList([6, 7])])
+        flattenedList = list.flatten()
+        sublist[1] = 4
+        self.assertEqual(len(flattenedList), 7)
+        self.assertEqual(flattenedList[3], 4)
+
+    def testActiveFlattenDelete(self):
+        sublist = ActiveList([3, 4, 9, 5])
+        list = ActiveList([ActiveList([1, 2]), sublist, ActiveList([6, 7])])
+        flattenedList = list.flatten()
+        del sublist[2]
+        self.assertEqual(len(flattenedList), 7)
+        self.assertEqual(flattenedList[4], 5)

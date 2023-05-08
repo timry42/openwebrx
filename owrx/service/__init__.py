@@ -8,7 +8,7 @@ from owrx.property import PropertyLayer, PropertyDeleted
 from owrx.service.schedule import ServiceScheduler
 from owrx.service.chain import ServiceDemodulatorChain
 from owrx.modes import Modes, DigitalMode
-from owrx.active.list import ActiveListListener, ActiveListChange, ActiveListIndexDeleted, ActiveListIndexAdded
+from owrx.active.list import ActiveList, ActiveListListener, ActiveListChange, ActiveListIndexDeleted, ActiveListIndexAdded
 from typing import Union, Optional
 from csdr.chain.demodulator import BaseDemodulatorChain, ServiceDemodulator, DialFrequencyReceiver
 from pycsdr.modules import Buffer
@@ -316,7 +316,7 @@ class ServiceHandler(SdrSourceEventClient):
 
 class SdrDeviceEventHandler(ActiveListListener):
 
-    def onListChange(self, changes: list[ActiveListChange]):
+    def onListChange(self, source: ActiveList, changes: list[ActiveListChange]):
         for change in changes:
             if isinstance(change, ActiveListIndexDeleted):
                 key = change.oldValue.getId()

@@ -12,7 +12,7 @@ from owrx.command import CommandMapper
 from owrx.socket import getAvailablePort
 from owrx.property import PropertyStack, PropertyLayer, PropertyFilter, PropertyCarousel, PropertyDeleted
 from owrx.property.filter import ByLambda
-from owrx.active.list import ActiveListListener, ActiveListChange, ActiveListIndexAdded, ActiveListIndexDeleted, ActiveListIndexUpdated
+from owrx.active.list import ActiveList, ActiveListListener, ActiveListChange, ActiveListIndexAdded, ActiveListIndexDeleted, ActiveListIndexUpdated
 from owrx.form.input import Input, TextInput, NumberInput, CheckboxInput, ModesInput, ExponentialInput
 from owrx.form.input.converter import OptionalConverter
 from owrx.form.input.device import GainInput, SchedulerInput, WaterfallLevelsInput
@@ -81,7 +81,7 @@ class SdrProfileCarouselListener(ActiveListListener):
     def __init__(self, carousel):
         self.carousel = carousel
 
-    def onListChange(self, changes: list[ActiveListChange]):
+    def onListChange(self, source: ActiveList, changes: list[ActiveListChange]):
         for change in changes:
             if isinstance(change, ActiveListIndexAdded):
                 self.carousel.addProfile(change.newValue)

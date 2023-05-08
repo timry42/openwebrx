@@ -39,7 +39,7 @@ class ActiveListIndexDeleted(ActiveListChange):
 
 class ActiveListListener(ABC):
     @abstractmethod
-    def onListChange(self, changes: list[ActiveListChange]):
+    def onListChange(self, source: "ActiveList", changes: list[ActiveListChange]):
         pass
 
 
@@ -48,7 +48,7 @@ class ActiveListTransformationListener(ActiveListListener):
         self.transformation = transformation
         self.target = target
 
-    def onListChange(self, changes: list[ActiveListChange]):
+    def onListChange(self, source: "ActiveList", changes: list[ActiveListChange]):
         for change in changes:
             if isinstance(change, ActiveListIndexUpdated):
                 self.target[change.index] = self.transformation(change.newValue)
@@ -64,7 +64,7 @@ class ActiveListFilterListener(ActiveListListener):
         self.keyMap = keyMap
         self.target = target
 
-    def onListChange(self, changes: list[ActiveListChange]):
+    def onListChange(self, source: "ActiveList", changes: list[ActiveListChange]):
         for change in changes:
             if isinstance(change, ActiveListIndexAdded):
                 if self.filter(change.newValue):
@@ -85,6 +85,27 @@ class ActiveListFilterListener(ActiveListListener):
                     idx = self.keyMap.index(change.index)
                     del self.target[idx]
                     del self.keyMap[idx]
+
+
+class ActiveListFlattenListener(ActiveListListener):
+    def __init__(self, source: "ActiveList", target: "ActiveList"):
+        self.source = source
+        self.target = target
+        for member in self.source:
+            member.addListener(self)
+
+    def getOffsetFor(self, source: "ActiveList"):
+        idx = self.source.index(source)
+        return sum(len(s) for s in self.source[0:idx])
+
+    def onListChange(self, source: "ActiveList", changes: list[ActiveListChange]):
+        for change in changes:
+            if isinstance(change, ActiveListIndexAdded):
+                self.target.insert(self.getOffsetFor(source) + change.index, change.newValue)
+            elif isinstance(change, ActiveListIndexUpdated):
+                self.target[self.getOffsetFor(source) + change.index] = change.newValue
+            elif isinstance(change, ActiveListIndexDeleted):
+                del self.target[self.getOffsetFor(source) + change.index]
 
 
 class ActiveList:
@@ -109,7 +130,7 @@ class ActiveList:
     def __fireChanges(self, changes: list[ActiveListChange]):
         for listener in self.listeners:
             try:
-                listener.onListChange(changes)
+                listener.onListChange(self, changes)
             except Exception:
                 logger.exception("Exception during onListChange notification")
 
@@ -119,6 +140,9 @@ class ActiveList:
     def insert(self, index, value):
         self.delegate.insert(index, value)
         self.__fireChanges([ActiveListIndexInserted(index, value)])
+
+    def index(self, value):
+        return self.delegate.index(value)
 
     def map(self, transform: callable):
         res = ActiveList([transform(v) for v in self])
@@ -137,7 +161,7 @@ class ActiveList:
 
     def flatten(self):
         res = ActiveList([y for x in self for y in x])
-        # TODO handle events
+        handler = ActiveListFlattenListener(self, res)
         return res
 
     def __setitem__(self, key, value):
