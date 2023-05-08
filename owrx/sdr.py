@@ -39,9 +39,6 @@ class SdrService(object):
 
     @staticmethod
     def getAllSources():
-        def isDeviceValid(device):
-            return sdrTypeAvailable(device) and hasProfiles(device)
-
         def hasProfiles(device):
             return "profiles" in device and device["profiles"] and len(device["profiles"]) > 0
 
@@ -70,7 +67,10 @@ class SdrService(object):
             return cls(props)
 
         if SdrService.sources is None:
-            SdrService.sources = Config.get()["sdrs"].filter(isDeviceValid).map(buildNewSource)
+            SdrService.sources = Config.get()["sdrs"] \
+                .filter(sdrTypeAvailable) \
+                .filter(hasProfiles) \
+                .map(buildNewSource)
         return SdrService.sources
 
     @staticmethod
