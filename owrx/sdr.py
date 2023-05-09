@@ -22,7 +22,6 @@ class ProfileNameMapper(ActiveListTransformation):
 
     def unmonitor(self, member):
         affected = [sub for sub in self.subscriptions if sub.subscriptee is member]
-        logger.debug("removing %i affected subs", len(affected))
         for sub in affected:
             sub.cancel()
             self.subscriptions.remove(sub)
@@ -40,7 +39,6 @@ class ProfileMapper(ActiveListTransformation):
 
     def unmonitor(self, member):
         affected = [sub for sub in self.subscriptions if sub.subscriptee is member]
-        logger.debug("removing %i affected subs", len(affected))
         for sub in affected:
             sub.cancel()
             self.subscriptions.remove(sub)
