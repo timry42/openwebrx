@@ -1,10 +1,49 @@
 from owrx.config import Config
 from owrx.source import SdrSource
 from owrx.feature import FeatureDetector, UnknownFeatureException
+from owrx.active.list import ActiveListTransformation
 
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+class ProfileNameMapper(ActiveListTransformation):
+    def __init__(self, source_id, source_name):
+        self.source_id = source_id
+        self.source_name = source_name
+        self.subscriptions = []
+
+    def transform(self, profile):
+        return {"id": "{}|{}".format(self.source_id, profile["id"]), "name": "{} {}".format(self.source_name, profile["name"])}
+
+    def monitor(self, profile, callback: callable):
+        self.subscriptions.append(profile.filter("name").wire(lambda _: callback()))
+
+    def unmonitor(self, member):
+        affected = [sub for sub in self.subscriptions if sub.subscriptee is member]
+        logger.debug("removing %i affected subs", len(affected))
+        for sub in affected:
+            sub.cancel()
+            self.subscriptions.remove(sub)
+
+
+class ProfileMapper(ActiveListTransformation):
+    def __init__(self):
+        self.subscriptions = []
+
+    def transform(self, source):
+        return source.getProfiles().map(ProfileNameMapper(source.getId(), source.getName()))
+
+    def monitor(self, source, callback: callable):
+        self.subscriptions.append(source.getProps().filter("name").wire(lambda _: callback()))
+
+    def unmonitor(self, member):
+        affected = [sub for sub in self.subscriptions if sub.subscriptee is member]
+        logger.debug("removing %i affected subs", len(affected))
+        for sub in affected:
+            sub.cancel()
+            self.subscriptions.remove(sub)
 
 
 class SdrService(object):
@@ -84,11 +123,8 @@ class SdrService(object):
 
     @staticmethod
     def getAvailableProfiles():
-        def buildProfiles(source):
-            return source.getProfiles().map(lambda profile: {"id": "{}|{}".format(source.getId(), profile["id"]), "name": "{} {}".format(source.getName(), profile["name"])})
-
         if SdrService.availableProfiles is None:
-            SdrService.availableProfiles = SdrService.getActiveSources().map(buildProfiles).flatten()
+            SdrService.availableProfiles = SdrService.getActiveSources().map(ProfileMapper()).flatten()
         return SdrService.availableProfiles
 
     @staticmethod

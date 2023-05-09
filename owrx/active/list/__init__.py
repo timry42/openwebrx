@@ -50,9 +50,6 @@ class ActiveListTransformation(ABC):
     def transform(self, value):
         pass
 
-    def __call__(self, *args, **kwargs):
-        return self.transform(*args, **kwargs)
-
     def monitor(self, member, callback: callable):
         pass
 
@@ -60,26 +57,38 @@ class ActiveListTransformation(ABC):
         pass
 
 
+class BasicTransformation(ActiveListTransformation):
+    def __init__(self, transformation: callable):
+        self.transformation = transformation
+
+    def transform(self, value):
+        return self.transformation(value)
+
+
 class ActiveListTransformationListener(ActiveListListener):
-    def __init__(self, transformation: callable, source: "ActiveList", target: "ActiveList"):
+    def __init__(self, transformation: ActiveListTransformation, source: "ActiveList", target: "ActiveList"):
         self.transformation = transformation
         self.source = source
         self.target = target
-        if isinstance(transformation, ActiveListTransformation):
-            for idx, v in enumerate(self.source):
-                transformation.monitor(v, partial(self._onMonitor, idx))
+        for v in self.source:
+            transformation.monitor(v, partial(self._onMonitor, v))
 
     def onListChange(self, source: "ActiveList", changes: list[ActiveListChange]):
         for change in changes:
             if isinstance(change, ActiveListIndexUpdated):
-                self.target[change.index] = self.transformation(change.newValue)
+                self.transformation.unmonitor(change.oldValue)
+                self.target[change.index] = self.transformation.transform(change.newValue)
+                self.transformation.monitor(change.newValue, partial(self._onMonitor, change.newValue))
             elif isinstance(change, ActiveListIndexAdded):
-                self.target.insert(change.index, self.transformation(change.newValue))
+                self.target.insert(change.index, self.transformation.transform(change.newValue))
+                self.transformation.monitor(change.newValue, partial(self._onMonitor, change.newValue))
             elif isinstance(change, ActiveListIndexDeleted):
                 del self.target[change.index]
+                self.transformation.unmonitor(change.oldValue)
 
-    def _onMonitor(self, idx):
-        self.target[idx] = self.transformation(self.source[idx])
+    def _onMonitor(self, value):
+        idx = self.source.index(value)
+        self.target[idx] = self.transformation.transform(self.source[idx])
 
 
 class ActiveListFilterListener(ActiveListListener):
@@ -133,12 +142,16 @@ class ActiveListFlattenListener(ActiveListListener):
                     idx = self.getOffsetForIndex(change.index)
                     for n, v in enumerate(change.newValue):
                         self.target.insert(idx + n, v)
+                    change.newValue.addListener(self)
                 elif isinstance(change, ActiveListIndexUpdated):
+                    change.oldValue.removeListener(self)
                     idx = self.getOffsetForIndex(change.index)
                     del self.target[idx, idx + len(change.oldValue)]
                     for n, v in enumerate(change.newValue):
                         self.target.insert(idx + n, v)
+                    change.newValue.addListener(self)
                 elif isinstance(change, ActiveListIndexDeleted):
+                    change.oldValue.removeListener(self)
                     idx = self.getOffsetForIndex(change.index)
                     del self.target[idx, idx + len(change.oldValue)]
             else:
@@ -186,9 +199,11 @@ class ActiveList:
     def index(self, value):
         return self.delegate.index(value)
 
-    def map(self, transform: Union[callable, ActiveListTransformation]):
-        res = ActiveList([transform(v) for v in self])
-        self.addListener(ActiveListTransformationListener(transform, self, res))
+    def map(self, transformation: Union[callable, ActiveListTransformation]):
+        if not isinstance(transformation, ActiveListTransformation):
+            transformation = BasicTransformation(transformation)
+        res = ActiveList([transformation.transform(v) for v in self])
+        self.addListener(ActiveListTransformationListener(transformation, self, res))
         return res
 
     def filter(self, filter: callable):
