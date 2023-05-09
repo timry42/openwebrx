@@ -191,7 +191,7 @@ class ActiveListTest(TestCase):
         self.assertEqual(flattenedList[2], 3)
         self.assertEqual(flattenedList[3], 4)
 
-    def testActiveFlattenAdd(self):
+    def testActiveFlattenMemberAppend(self):
         sublist = ActiveList([3, 4])
         list = ActiveList([ActiveList([1, 2]), sublist, ActiveList([6, 7])])
         flattenedList = list.flatten()
@@ -199,7 +199,7 @@ class ActiveListTest(TestCase):
         self.assertEqual(len(flattenedList), 7)
         self.assertEqual(flattenedList[4], 5)
 
-    def testActiveFlattenInsert(self):
+    def testActiveFlattenMemberInsert(self):
         sublist = ActiveList([3, 5])
         list = ActiveList([ActiveList([1, 2]), sublist, ActiveList([6, 7])])
         flattenedList = list.flatten()
@@ -207,7 +207,23 @@ class ActiveListTest(TestCase):
         self.assertEqual(len(flattenedList), 7)
         self.assertEqual(flattenedList[3], 4)
 
-    def testActiveFlattenUpdate(self):
+    def testActiveFlattenListInsert(self):
+        list = ActiveList([ActiveList([1, 2]), ActiveList([6, 7])])
+        flattenedList = list.flatten()
+        sublist = ActiveList([3, 4])
+        list.insert(1, sublist)
+        self.assertEqual(len(flattenedList), 6)
+        self.assertEqual(flattenedList[2], 3)
+
+    def testActiveFlattenListUpdate(self):
+        sublist = ActiveList([3, 9, 5])
+        list = ActiveList([ActiveList([1, 2]), sublist, ActiveList([6, 7])])
+        flattenedList = list.flatten()
+        sublist = ActiveList([3, 4, 5])
+        list[1] = sublist
+        self.assertEqual(flattenedList[3], 4)
+
+    def testActiveFlattenMemberUpdate(self):
         sublist = ActiveList([3, 9, 5])
         list = ActiveList([ActiveList([1, 2]), sublist, ActiveList([6, 7])])
         flattenedList = list.flatten()
@@ -215,10 +231,17 @@ class ActiveListTest(TestCase):
         self.assertEqual(len(flattenedList), 7)
         self.assertEqual(flattenedList[3], 4)
 
-    def testActiveFlattenDelete(self):
+    def testActiveFlattenMemberDelete(self):
         sublist = ActiveList([3, 4, 9, 5])
         list = ActiveList([ActiveList([1, 2]), sublist, ActiveList([6, 7])])
         flattenedList = list.flatten()
         del sublist[2]
         self.assertEqual(len(flattenedList), 7)
         self.assertEqual(flattenedList[4], 5)
+
+    def testActiveFlattenListDelete(self):
+        list = ActiveList([ActiveList([1, 2]), ActiveList([9]), ActiveList([3, 4]), ActiveList([5, 6])])
+        flattenedList = list.flatten()
+        del list[1]
+        self.assertEqual(len(flattenedList), 6)
+        self.assertEqual(flattenedList[2], 3)

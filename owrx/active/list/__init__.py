@@ -1,4 +1,6 @@
 from abc import ABC, abstractmethod
+from typing import Union
+from functools import partial
 
 import logging
 logger = logging.getLogger(__name__)
@@ -43,10 +45,29 @@ class ActiveListListener(ABC):
         pass
 
 
+class ActiveListTransformation(ABC):
+    @abstractmethod
+    def transform(self, value):
+        pass
+
+    def __call__(self, *args, **kwargs):
+        return self.transform(*args, **kwargs)
+
+    def monitor(self, member, callback: callable):
+        pass
+
+    def unmonitor(self, member):
+        pass
+
+
 class ActiveListTransformationListener(ActiveListListener):
-    def __init__(self, transformation: callable, target: "ActiveList"):
+    def __init__(self, transformation: callable, source: "ActiveList", target: "ActiveList"):
         self.transformation = transformation
+        self.source = source
         self.target = target
+        if isinstance(transformation, ActiveListTransformation):
+            for idx, v in enumerate(self.source):
+                transformation.monitor(v, partial(self._onMonitor, idx))
 
     def onListChange(self, source: "ActiveList", changes: list[ActiveListChange]):
         for change in changes:
@@ -56,6 +77,9 @@ class ActiveListTransformationListener(ActiveListListener):
                 self.target.insert(change.index, self.transformation(change.newValue))
             elif isinstance(change, ActiveListIndexDeleted):
                 del self.target[change.index]
+
+    def _onMonitor(self, idx):
+        self.target[idx] = self.transformation(self.source[idx])
 
 
 class ActiveListFilterListener(ActiveListListener):
@@ -91,21 +115,39 @@ class ActiveListFlattenListener(ActiveListListener):
     def __init__(self, source: "ActiveList", target: "ActiveList"):
         self.source = source
         self.target = target
+        self.source.addListener(self)
         for member in self.source:
             member.addListener(self)
 
     def getOffsetFor(self, source: "ActiveList"):
         idx = self.source.index(source)
+        return self.getOffsetForIndex(idx)
+
+    def getOffsetForIndex(self, idx: int):
         return sum(len(s) for s in self.source[0:idx])
 
     def onListChange(self, source: "ActiveList", changes: list[ActiveListChange]):
         for change in changes:
-            if isinstance(change, ActiveListIndexAdded):
-                self.target.insert(self.getOffsetFor(source) + change.index, change.newValue)
-            elif isinstance(change, ActiveListIndexUpdated):
-                self.target[self.getOffsetFor(source) + change.index] = change.newValue
-            elif isinstance(change, ActiveListIndexDeleted):
-                del self.target[self.getOffsetFor(source) + change.index]
+            if source is self.source:
+                if isinstance(change, ActiveListIndexAdded):
+                    idx = self.getOffsetForIndex(change.index)
+                    for n, v in enumerate(change.newValue):
+                        self.target.insert(idx + n, v)
+                elif isinstance(change, ActiveListIndexUpdated):
+                    idx = self.getOffsetForIndex(change.index)
+                    del self.target[idx, idx + len(change.oldValue)]
+                    for n, v in enumerate(change.newValue):
+                        self.target.insert(idx + n, v)
+                elif isinstance(change, ActiveListIndexDeleted):
+                    idx = self.getOffsetForIndex(change.index)
+                    del self.target[idx, idx + len(change.oldValue)]
+            else:
+                if isinstance(change, ActiveListIndexAdded):
+                    self.target.insert(self.getOffsetFor(source) + change.index, change.newValue)
+                elif isinstance(change, ActiveListIndexUpdated):
+                    self.target[self.getOffsetFor(source) + change.index] = change.newValue
+                elif isinstance(change, ActiveListIndexDeleted):
+                    del self.target[self.getOffsetFor(source) + change.index]
 
 
 class ActiveList:
@@ -144,9 +186,9 @@ class ActiveList:
     def index(self, value):
         return self.delegate.index(value)
 
-    def map(self, transform: callable):
+    def map(self, transform: Union[callable, ActiveListTransformation]):
         res = ActiveList([transform(v) for v in self])
-        self.addListener(ActiveListTransformationListener(transform, res))
+        self.addListener(ActiveListTransformationListener(transform, self, res))
         return res
 
     def filter(self, filter: callable):
@@ -172,9 +214,15 @@ class ActiveList:
         self.__fireChanges([ActiveListIndexUpdated(key, oldValue, value)])
 
     def __delitem__(self, key):
-        oldValue = self.delegate[key]
-        del self.delegate[key]
-        self.__fireChanges([ActiveListIndexDeleted(key, oldValue)])
+        if isinstance(key, tuple):
+            start, stop = key
+            changes = [ActiveListIndexDeleted(start + idx, v) for idx, v in enumerate(self.delegate[start:stop])]
+            del self.delegate[start:stop]
+            self.__fireChanges(changes)
+        else:
+            oldValue = self.delegate[key]
+            del self.delegate[key]
+            self.__fireChanges([ActiveListIndexDeleted(key, oldValue)])
 
     def __getitem__(self, key):
         return self.delegate[key]
