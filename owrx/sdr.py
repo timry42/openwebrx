@@ -1,7 +1,7 @@
 from owrx.config import Config
 from owrx.source import SdrSource
 from owrx.feature import FeatureDetector, UnknownFeatureException
-from owrx.active.list import ActiveListTransformation
+from owrx.active.list import ActiveListTransformation, ActiveListFilter, ActiveListListener, ActiveList, ActiveListChange
 
 import logging
 
@@ -12,36 +12,53 @@ class ProfileNameMapper(ActiveListTransformation):
     def __init__(self, source_id, source_name):
         self.source_id = source_id
         self.source_name = source_name
-        self.subscriptions = []
+        self.subscriptions = {}
 
     def transform(self, profile):
         return {"id": "{}|{}".format(self.source_id, profile["id"]), "name": "{} {}".format(self.source_name, profile["name"])}
 
     def monitor(self, profile, callback: callable):
-        self.subscriptions.append(profile.filter("name").wire(lambda _: callback()))
+        self.subscriptions[id(profile)] = profile.filter("name").wire(lambda _: callback())
 
-    def unmonitor(self, member):
-        affected = [sub for sub in self.subscriptions if sub.subscriptee is member]
-        for sub in affected:
-            sub.cancel()
-            self.subscriptions.remove(sub)
+    def unmonitor(self, profile):
+        self.subscriptions[id(profile)].cancel()
 
 
 class ProfileMapper(ActiveListTransformation):
     def __init__(self):
-        self.subscriptions = []
+        self.subscriptions = {}
 
     def transform(self, source):
         return source.getProfiles().map(ProfileNameMapper(source.getId(), source.getName()))
 
     def monitor(self, source, callback: callable):
-        self.subscriptions.append(source.getProps().filter("name").wire(lambda _: callback()))
+        self.subscriptions[id(source)] = source.getProps().filter("name").wire(lambda _: callback())
 
-    def unmonitor(self, member):
-        affected = [sub for sub in self.subscriptions if sub.subscriptee is member]
-        for sub in affected:
-            sub.cancel()
-            self.subscriptions.remove(sub)
+    def unmonitor(self, source):
+        self.subscriptions[id(source)].cancel()
+
+
+class ProfileChangeListener(ActiveListListener):
+    def __init__(self, callback: callable):
+        self.callback = callback
+
+    def onListChange(self, source: ActiveList, changes: list[ActiveListChange]):
+        self.callback()
+
+
+class HasProfilesFilter(ActiveListFilter):
+    def __init__(self):
+        self.monitors = {}
+
+    def predicate(self, device) -> bool:
+        return "profiles" in device and device["profiles"] and len(device["profiles"]) > 0
+
+    def monitor(self, device, callback: callable):
+        self.monitors[id(device)] = monitor = ProfileChangeListener(callback)
+        device["profiles"].addListener(monitor)
+
+    def unmonitor(self, device):
+        device["profiles"].removeListener(self.monitors[id(device)])
 
 
 class SdrService(object):
@@ -76,9 +93,6 @@ class SdrService(object):
 
     @staticmethod
     def getAllSources():
-        def hasProfiles(device):
-            return "profiles" in device and device["profiles"] and len(device["profiles"]) > 0
-
         def sdrTypeAvailable(value):
             featureDetector = FeatureDetector()
             try:
@@ -106,17 +120,16 @@ class SdrService(object):
         if SdrService.sources is None:
             SdrService.sources = Config.get()["sdrs"] \
                 .filter(sdrTypeAvailable) \
-                .filter(hasProfiles) \
+                .filter(HasProfilesFilter()) \
                 .map(buildNewSource)
         return SdrService.sources
 
     @staticmethod
     def getActiveSources():
-        def isAvailable(source: SdrSource):
-            return source.isEnabled() and not source.isFailed()
-
         if SdrService.activeSources is None:
-            SdrService.activeSources = SdrService.getAllSources().filter(isAvailable)
+            SdrService.activeSources = SdrService.getAllSources() \
+                .filter(lambda source: source.isEnabled()) \
+                .filter(lambda source: not source.isFailed())
         return SdrService.activeSources
 
     @staticmethod

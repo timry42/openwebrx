@@ -65,6 +65,26 @@ class BasicTransformation(ActiveListTransformation):
         return self.transformation(value)
 
 
+class ActiveListFilter(ABC):
+    @abstractmethod
+    def predicate(self, value) -> bool:
+        pass
+
+    def monitor(self, member, callback: callable):
+        pass
+
+    def unmonitor(self, member):
+        pass
+
+
+class BasicFilter(ActiveListFilter):
+    def __init__(self, predicate: callable):
+        self.predicate = predicate
+
+    def predicate(self, value) -> bool:
+        return self.predicate(value)
+
+
 class ActiveListTransformationListener(ActiveListListener):
     def __init__(self, transformation: ActiveListTransformation, source: "ActiveList", target: "ActiveList"):
         self.transformation = transformation
@@ -92,32 +112,50 @@ class ActiveListTransformationListener(ActiveListListener):
 
 
 class ActiveListFilterListener(ActiveListListener):
-    def __init__(self, filter: callable, keyMap: list, target: "ActiveList"):
+    def __init__(self, filter: ActiveListFilter, source: "ActiveList", target: "ActiveList"):
         self.filter = filter
-        self.keyMap = keyMap
+        self.source = source
+        self.keyMap = [idx for idx, val in enumerate(self.source) if self.filter.predicate(val)]
+        for v in self.source:
+            self.filter.monitor(v, partial(self._onMonitor, v))
         self.target = target
 
     def onListChange(self, source: "ActiveList", changes: list[ActiveListChange]):
         for change in changes:
             if isinstance(change, ActiveListIndexAdded):
-                if self.filter(change.newValue):
+                if self.filter.predicate(change.newValue):
                     idx = len([x for x in self.keyMap if x < change.index])
-                    self.target.insert(idx, change.newValue)
                     self.keyMap.insert(idx, change.index)
+                    self.target.insert(idx, change.newValue)
+                self.filter.monitor(change.newValue, partial(self._onMonitor, change.newValue))
             elif isinstance(change, ActiveListIndexUpdated):
-                if change.index in self.keyMap and not self.filter(change.newValue):
+                self.filter.unmonitor(change.oldValue)
+                if change.index in self.keyMap and not self.filter.predicate(change.newValue):
                     idx = self.keyMap.index(change.index)
                     del self.target[idx]
                     del self.keyMap[idx]
-                elif change.index not in self.keyMap and self.filter(change.newValue):
+                elif change.index not in self.keyMap and self.filter.predicate(change.newValue):
                     idx = len([x for x in self.keyMap if x < change.index])
-                    self.target.insert(idx, change.newValue)
                     self.keyMap.insert(idx, change.index)
+                    self.target.insert(idx, change.newValue)
+                self.filter.monitor(change.newValue, partial(self._onMonitor, change.newValue))
             elif isinstance(change, ActiveListIndexDeleted):
+                self.filter.unmonitor(change.oldValue)
                 if change.index in self.keyMap:
                     idx = self.keyMap.index(change.index)
                     del self.target[idx]
                     del self.keyMap[idx]
+
+    def _onMonitor(self, value):
+        idx = self.source.index(value)
+        if idx in self.keyMap and not self.filter.predicate(value):
+            idx = self.keyMap.index(idx)
+            del self.target[idx]
+            del self.keyMap[idx]
+        elif idx not in self.keyMap and self.filter.predicate(value):
+            newIndex = len([x for x in self.keyMap if x < idx])
+            self.keyMap.insert(newIndex, idx)
+            self.target.insert(newIndex, value)
 
 
 class ActiveListFlattenListener(ActiveListListener):
@@ -183,7 +221,7 @@ class ActiveList:
         self.__fireChanges([ActiveListIndexAppended(len(self) - 1, value)])
 
     def __fireChanges(self, changes: list[ActiveListChange]):
-        for listener in self.listeners:
+        for listener in self.listeners.copy():
             try:
                 listener.onListChange(self, changes)
             except Exception:
@@ -206,14 +244,11 @@ class ActiveList:
         self.addListener(ActiveListTransformationListener(transformation, self, res))
         return res
 
-    def filter(self, filter: callable):
-        res = ActiveList()
-        keyMap = []
-        for idx, val in enumerate(self):
-            if filter(val):
-                res.append(val)
-                keyMap.append(idx)
-        self.addListener(ActiveListFilterListener(filter, keyMap, res))
+    def filter(self, filter: Union[callable, ActiveListFilter]):
+        if not isinstance(filter, ActiveListFilter):
+            filter = BasicFilter(filter)
+        res = ActiveList([val for val in self if filter.predicate(val)])
+        self.addListener(ActiveListFilterListener(filter, self, res))
         return res
 
     def flatten(self):
