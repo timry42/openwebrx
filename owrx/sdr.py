@@ -1,5 +1,5 @@
 from owrx.config import Config
-from owrx.source import SdrSource
+from owrx.source import SdrSourceEventClient
 from owrx.feature import FeatureDetector, UnknownFeatureException
 from owrx.active.list import ActiveListTransformation, ActiveListFilter, ActiveListListener, ActiveList, ActiveListChange
 
@@ -59,6 +59,55 @@ class HasProfilesFilter(ActiveListFilter):
 
     def unmonitor(self, device):
         device["profiles"].removeListener(self.monitors[id(device)])
+
+
+class SourceIsEnabledListener(SdrSourceEventClient):
+    def __init__(self, callback: callable):
+        self.callback = callback
+
+    def onEnable(self):
+        self.callback()
+
+    def onDisable(self):
+        self.callback()
+
+
+class SourceIsEnabledFilter(ActiveListFilter):
+    def __init__(self):
+        self.monitors = {}
+
+    def predicate(self, source) -> bool:
+        return source.isEnabled()
+
+    def monitor(self, source, callback: callable):
+        self.monitors[id(source)] = monitor = SourceIsEnabledListener(callback)
+        source.addClient(monitor)
+
+    def unmonitor(self, source):
+        source.removeClient(self.monitors[id(source)])
+
+
+class SourceIsNotFailedListener(SdrSourceEventClient):
+    def __init__(self, callback: callable):
+        self.callback = callback
+
+    def onFail(self):
+        self.callback()
+
+
+class SourceIsNotFailedFilter(ActiveListFilter):
+    def __init__(self):
+        self.monitors = {}
+
+    def predicate(self, source) -> bool:
+        return not source.isFailed()
+
+    def monitor(self, source, callback: callable):
+        self.monitors[id(source)] = monitor = SourceIsNotFailedListener(callback)
+        source.addClient(monitor)
+
+    def unmonitor(self, source):
+        source.removeClient(self.monitors[id(source)])
 
 
 class SdrService(object):
@@ -128,8 +177,8 @@ class SdrService(object):
     def getActiveSources():
         if SdrService.activeSources is None:
             SdrService.activeSources = SdrService.getAllSources() \
-                .filter(lambda source: source.isEnabled()) \
-                .filter(lambda source: not source.isFailed())
+                .filter(SourceIsEnabledFilter()) \
+                .filter(SourceIsNotFailedFilter())
         return SdrService.activeSources
 
     @staticmethod
