@@ -128,7 +128,7 @@ class SdrFormController(SettingsFormController, metaclass=ABCMeta):
 
     def render_tabs(self):
         return """
-            <ul class="nav nav-tabs">
+            <ul class="nav nav-tabs profile-tabs">
                 <li class="nav-item">
                     <a class="nav-link {device_active}" href="{device_link}">{device_name}</a>
                 </li>
@@ -145,10 +145,11 @@ class SdrFormController(SettingsFormController, metaclass=ABCMeta):
             new_profile_link="{}settings/sdr/{}/newprofile".format(self.get_document_root(), quote(self.device_id)),
             profile_tabs="".join(
                 """
-                    <li class="nav-item">
+                    <li class="nav-item profile" data-profile-id="{profile_id}">
                         <a class="nav-link {profile_active}" href="{profile_link}">{profile_name}</a>
                     </li>
                 """.format(
+                    profile_id=profile["id"],
                     profile_link="{}settings/sdr/{}/profile/{}".format(
                         self.get_document_root(), quote(self.device_id), quote(profile["id"])
                     ),
