@@ -16,6 +16,7 @@ from owrx.breadcrumb import BreadcrumbMixin, Breadcrumb, BreadcrumbItem
 from owrx.log import HistoryHandler
 from abc import ABCMeta, abstractmethod
 from uuid import uuid4
+import json
 
 
 class SdrDeviceBreadcrumb(SettingsBreadcrumb):
@@ -257,6 +258,28 @@ class SdrDeviceController(SdrFormControllerWithModal):
             self.send_response("device not found", code=404)
             return
         return super().processFormData()
+
+    def moveProfile(self):
+        if self.device is None:
+            self.send_response("{}", content_type="application/json", code=404)
+            return
+        try:
+            data = json.loads(self.get_body().decode("utf-8"))
+            if "profile_id" not in data or "index" not in data:
+                self.send_response("{}", content_type="application/json", code=400)
+                return
+            profile_id = data["profile_id"]
+            index = data["index"]
+            profiles = self.device["profiles"]
+            profile = next(p for p in profiles if p["id"] == profile_id)
+            profiles.remove(profile)
+            profiles.insert(index, profile)
+            self.store()
+            self.send_response("{}", content_type="application/json", code=203)
+        except json.JSONDecodeError:
+            self.send_response("{}", content_type="application/json", code=400)
+        except StopIteration:
+            self.send_response("{}", content_type="application/json", code=404)
 
     def getModalObjectType(self):
         return "SDR device"

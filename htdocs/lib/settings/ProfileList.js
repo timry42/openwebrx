@@ -11,8 +11,12 @@ $.fn.profileList = function() {
         return !!$target.length;
     }
 
-    var moveProfile = function(profileId, index, callback) {
-        console.info('moving ' + profileId + ' to ' + index);
+    var moveProfile = function(profileId, index) {
+        return $.ajax(document.location.href + '/moveprofile', {
+            data: JSON.stringify({profile_id: profileId, index: index}),
+            contentType: 'application/json',
+            method: 'POST'
+        });
     }
 
     this.each(function () {
@@ -41,15 +45,22 @@ $.fn.profileList = function() {
             if (!isValidDrag(event)) return;
             event.preventDefault();
         }).on('drop', function(event) {
+            if (!isValidDrag(event)) return;
             var $target = $(event.target).closest('.profile');
             var index = $profileList.find('.profile').index($target);
-            moveProfile(event.originalEvent.dataTransfer.getData(dataType), index);
-        }).on('dragend', function(event) {
+            moveProfile(event.originalEvent.dataTransfer.getData(dataType), index).done(function() {
+                // done
+            }).fail(function() {
+                // backend reported error, restore original position
+                $profileEl.remove().insertBefore($profileList.children().eq(originalIndex));
+            }).always(function() {
+                $profileEl = undefined;
+            });
+        }).on('dragend', '.profile', function(event) {
             if (event.originalEvent.dataTransfer.dropEffect === 'none') {
                 // drag was aborted - restore original position
                 $profileEl.remove().insertBefore($profileList.children().eq(originalIndex));
             }
-            $profileEl = undefined;
         });
     });
 }
