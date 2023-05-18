@@ -208,6 +208,11 @@ class SdrFormControllerWithModal(SdrFormController, metaclass=ABCMeta):
                     </div>
                 </div>
             </div>
+            <div class="overlay overlay-spinner justify-content-center align-items-center">
+                <div class="spinner-border" role="status">
+                    <span class="sr-only">Loading...</span>
+                </div>
+            </div>
         """.format(
             object_type=self.getModalObjectType(),
             confirm_url=self.getModalConfirmUrl(),

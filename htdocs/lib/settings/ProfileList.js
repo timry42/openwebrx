@@ -18,6 +18,7 @@ $.fn.profileList = function() {
         $profiles.find('a').attr('draggable', 'false');
         var $profileEl;
         var originalIndex;
+        var $spinner = $('.overlay-spinner');
 
         var moveProfile = function(profileId, index) {
             var url = $profileList.find('.device a').attr('href');
@@ -50,6 +51,8 @@ $.fn.profileList = function() {
             if (!isValidDrag(event)) return;
             var $target = $(event.target).closest('.profile');
             var index = $profileList.find('.profile').index($target);
+
+            $spinner.addClass('d-flex');
             moveProfile(event.originalEvent.dataTransfer.getData(dataType), index).done(function() {
                 // done
             }).fail(function() {
@@ -57,6 +60,7 @@ $.fn.profileList = function() {
                 $profileEl.remove().insertBefore($profileList.children().eq(originalIndex));
             }).always(function() {
                 $profileEl = undefined;
+                $spinner.removeClass('d-flex');
             });
         }).on('dragend', '.profile', function(event) {
             if (event.originalEvent.dataTransfer.dropEffect === 'none') {
