@@ -11,14 +11,6 @@ $.fn.profileList = function() {
         return !!$target.length;
     }
 
-    var moveProfile = function(profileId, index) {
-        return $.ajax(document.location.href + '/moveprofile', {
-            data: JSON.stringify({profile_id: profileId, index: index}),
-            contentType: 'application/json',
-            method: 'POST'
-        });
-    }
-
     this.each(function () {
         var $profileList = $(this);
         var $profiles = $profileList.find('.profile');
@@ -26,6 +18,16 @@ $.fn.profileList = function() {
         $profiles.find('a').attr('draggable', 'false');
         var $profileEl;
         var originalIndex;
+
+        var moveProfile = function(profileId, index) {
+            var url = $profileList.find('.device a').attr('href');
+            return $.ajax(url + '/moveprofile', {
+                data: JSON.stringify({profile_id: profileId, index: index}),
+                contentType: 'application/json',
+                method: 'POST'
+            });
+        }
+
         $profileList.on('dragstart', '.profile', function(event){
             $profileEl = $(event.originalEvent.target);
             originalIndex = $profileEl.index();

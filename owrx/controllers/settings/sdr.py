@@ -130,7 +130,7 @@ class SdrFormController(SettingsFormController, metaclass=ABCMeta):
     def render_tabs(self):
         return """
             <ul class="nav nav-tabs profile-tabs">
-                <li class="nav-item">
+                <li class="nav-item device">
                     <a class="nav-link {device_active}" href="{device_link}">{device_name}</a>
                 </li>
                 {profile_tabs}
