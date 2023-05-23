@@ -402,9 +402,10 @@ class PropertyCarousel(PropertyDelegator):
             self.layers[key] = value
 
     def removeLayer(self, key):
-        if key in self.layers and self.layers[key] is self.pm:
-            self.switch()
+        need_switch = key in self.layers and self.layers[key] is self.pm
         del self.layers[key]
+        if need_switch:
+            self.switch()
 
     def switch(self, key=None):
         before = self.pm

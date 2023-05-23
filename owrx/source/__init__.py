@@ -12,6 +12,7 @@ from owrx.command import CommandMapper
 from owrx.socket import getAvailablePort
 from owrx.property import PropertyStack, PropertyLayer, PropertyFilter, PropertyCarousel, PropertyDeleted
 from owrx.property.filter import ByLambda
+from owrx.active.list import ActiveListFilter
 from owrx.active.list import ActiveList, ActiveListListener, ActiveListChange, ActiveListIndexAdded, ActiveListIndexDeleted, ActiveListIndexUpdated
 from owrx.form.input import Input, TextInput, NumberInput, CheckboxInput, ModesInput, ExponentialInput
 from owrx.form.input.converter import OptionalConverter
@@ -98,12 +99,14 @@ class SdrProfileCarousel(PropertyCarousel):
         if "profiles" not in props:
             return
 
-        for profile in props["profiles"]:
+        profiles = props["profiles"].filter(ProfileIsActiveFilter())
+
+        for profile in profiles:
             self.addProfile(profile)
         # activate first available profile
         self.switch()
 
-        props["profiles"].addListener(SdrProfileCarouselListener(self))
+        profiles.addListener(SdrProfileCarouselListener(self))
 
     def addProfile(self, profile):
         profile_id = profile["id"]
@@ -121,6 +124,21 @@ class SdrProfileCarousel(PropertyCarousel):
         if self.layers:
             return next(iter(self.layers.values()))
         return super()._getDefaultLayer()
+
+
+class ProfileIsActiveFilter(ActiveListFilter):
+    def __init__(self):
+        self.subscriptions = {}
+
+    def predicate(self, profile) -> bool:
+        return "enabled" not in profile or profile["enabled"]
+
+    def monitor(self, profile, callback: callable):
+        self.subscriptions[id(profile)] = profile.filter("enabled").wire(lambda _: callback())
+
+    def unmonitor(self, profile):
+        self.subscriptions[id(profile)].cancel()
+        del self.subscriptions[id(profile)]
 
 
 class SdrSource(ABC):
@@ -260,7 +278,7 @@ class SdrSource(ABC):
         return self.getProfile(self.props["profile_id"])
 
     def getProfiles(self):
-        return self.props["profiles"]
+        return self.props["profiles"].filter(ProfileIsActiveFilter())
 
     def getProfile(self, profile_id):
         try:
@@ -599,20 +617,25 @@ class SdrDeviceDescription(object):
 
     def getDeviceInputs(self) -> List[Input]:
         keys = self.getDeviceMandatoryKeys() + self.getDeviceOptionalKeys()
-        return [TextInput("name", "Device name", validator=RequiredValidator())] + [
+        return [
+           TextInput("name", "Device name", validator=RequiredValidator()),
+           CheckboxInput("enabled", "Enable this device", converter=OptionalConverter(defaultFormValue=True)),
+        ] + [
             i for i in self.getInputs() if i.id in keys
         ]
 
     def getProfileInputs(self) -> List[Input]:
         keys = self.getProfileMandatoryKeys() + self.getProfileOptionalKeys()
-        return [TextInput("name", "Profile name", validator=RequiredValidator())] + [
+        return [
+           TextInput("name", "Profile name", validator=RequiredValidator()),
+           CheckboxInput("enabled", "Enable this profile", converter=OptionalConverter(defaultFormValue=True)),
+        ] + [
             i for i in self.getInputs() if i.id in keys
         ]
 
     def getInputs(self) -> List[Input]:
         return [
             SdrDeviceTypeDisplay("type", "Device type"),
-            CheckboxInput("enabled", "Enable this device", converter=OptionalConverter(defaultFormValue=True)),
             GainInput("rf_gain", "Device gain", self.hasAgc()),
             NumberInput(
                 "ppm",
@@ -671,7 +694,7 @@ class SdrDeviceDescription(object):
         return keys
 
     def getProfileMandatoryKeys(self):
-        return ["name", "center_freq", "samp_rate", "start_freq", "start_mod"]
+        return ["name", "enabled", "center_freq", "samp_rate", "start_freq", "start_mod"]
 
     def getProfileOptionalKeys(self):
         return [

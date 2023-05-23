@@ -1,5 +1,5 @@
 from owrx.config import Config
-from owrx.source import SdrSourceEventClient
+from owrx.source import SdrSourceEventClient, ProfileIsActiveFilter
 from owrx.feature import FeatureDetector, UnknownFeatureException
 from owrx.active.list import ActiveListTransformation, ActiveListFilter, ActiveListListener, ActiveList, ActiveListChange
 
@@ -22,6 +22,7 @@ class ProfileNameMapper(ActiveListTransformation):
 
     def unmonitor(self, profile):
         self.subscriptions[id(profile)].cancel()
+        del self.subscriptions[id(profile)]
 
 
 class ProfileMapper(ActiveListTransformation):
@@ -36,6 +37,7 @@ class ProfileMapper(ActiveListTransformation):
 
     def unmonitor(self, source):
         self.subscriptions[id(source)].cancel()
+        del self.subscriptions[id(source)]
 
 
 class ProfileChangeListener(ActiveListListener):
@@ -49,16 +51,24 @@ class ProfileChangeListener(ActiveListListener):
 class HasProfilesFilter(ActiveListFilter):
     def __init__(self):
         self.monitors = {}
+        self.profiles = {}
 
     def predicate(self, device) -> bool:
-        return "profiles" in device and device["profiles"] and len(device["profiles"]) > 0
+        if "profiles" not in device:
+            return False
+        if id(device) not in self.profiles:
+            self.profiles[id(device)] = device["profiles"].filter(ProfileIsActiveFilter())
+        return len(self.profiles[id(device)]) > 0
 
     def monitor(self, device, callback: callable):
         self.monitors[id(device)] = monitor = ProfileChangeListener(callback)
-        device["profiles"].addListener(monitor)
+        if id(device) not in self.profiles:
+            self.profiles[id(device)] = device["profiles"].filter(ProfileIsActiveFilter())
+        self.profiles[id(device)].addListener(monitor)
 
     def unmonitor(self, device):
-        device["profiles"].removeListener(self.monitors[id(device)])
+        self.profiles[id(device)].removeListener(self.monitors[id(device)])
+        del self.monitors[id(device)]
 
 
 class SourceIsEnabledListener(SdrSourceEventClient):
