@@ -2,6 +2,8 @@
 - SDR device log messages are now available in the web configuration to simplify troubleshooting
 - Added support for the MSK144 digimode
 - Added IPv6 support
+- Added profile re-ordering using drag & drop
+- Added the ability to disable profiles
 
 **1.2.1**
 - FifiSDR support fixed (pipeline formats now line up correctly)
