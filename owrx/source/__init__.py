@@ -94,12 +94,8 @@ class SdrProfileCarouselListener(ActiveListListener):
 
 
 class SdrProfileCarousel(PropertyCarousel):
-    def __init__(self, props):
+    def __init__(self, profiles):
         super().__init__()
-        if "profiles" not in props:
-            return
-
-        profiles = props["profiles"].filter(ProfileIsActiveFilter())
 
         for profile in profiles:
             self.addProfile(profile)
@@ -126,7 +122,7 @@ class SdrProfileCarousel(PropertyCarousel):
         return super()._getDefaultLayer()
 
 
-class ProfileIsActiveFilter(ActiveListFilter):
+class ProfileIsEnabledFilter(ActiveListFilter):
     def __init__(self):
         self.subscriptions = {}
 
@@ -154,9 +150,12 @@ class SdrSource(ABC):
         self.stderrPipe = None
 
         self.props = PropertyStack()
+        if "profiles" not in props:
+            props["profiles"] = ActiveList()
+        self.profiles = props["profiles"].filter(ProfileIsEnabledFilter())
 
         # layer 0 reserved for profile properties
-        self.profileCarousel = SdrProfileCarousel(props)
+        self.profileCarousel = SdrProfileCarousel(self.profiles)
         # prevent profile names from overriding the device name
         self.props.addLayer(0, PropertyFilter(self.profileCarousel, ByLambda(lambda x: x != "name")))
 
@@ -278,7 +277,7 @@ class SdrSource(ABC):
         return self.getProfile(self.props["profile_id"])
 
     def getProfiles(self):
-        return self.props["profiles"].filter(ProfileIsActiveFilter())
+        return self.profiles
 
     def getProfile(self, profile_id):
         try:

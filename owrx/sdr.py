@@ -1,7 +1,7 @@
 from owrx.config import Config
-from owrx.source import SdrSourceEventClient, ProfileIsActiveFilter
+from owrx.source import SdrSourceEventClient, ProfileIsEnabledFilter
 from owrx.feature import FeatureDetector, UnknownFeatureException
-from owrx.active.list import ActiveListTransformation, ActiveListFilter, ActiveListListener, ActiveList, ActiveListChange
+from owrx.active.list import ActiveListTransformation, ActiveListFilter, ActiveListListener, ActiveList, ActiveListChange, ActiveListIndexAdded, ActiveListIndexDeleted
 
 import logging
 
@@ -45,7 +45,8 @@ class ProfileChangeListener(ActiveListListener):
         self.callback = callback
 
     def onListChange(self, source: ActiveList, changes: list[ActiveListChange]):
-        self.callback()
+        if any(isinstance(c, ActiveListIndexAdded) or isinstance(c, ActiveListIndexDeleted) for c in changes):
+            self.callback()
 
 
 class HasProfilesFilter(ActiveListFilter):
@@ -57,13 +58,13 @@ class HasProfilesFilter(ActiveListFilter):
         if "profiles" not in device:
             return False
         if id(device) not in self.profiles:
-            self.profiles[id(device)] = device["profiles"].filter(ProfileIsActiveFilter())
+            self.profiles[id(device)] = device["profiles"].filter(ProfileIsEnabledFilter())
         return len(self.profiles[id(device)]) > 0
 
     def monitor(self, device, callback: callable):
         self.monitors[id(device)] = monitor = ProfileChangeListener(callback)
         if id(device) not in self.profiles:
-            self.profiles[id(device)] = device["profiles"].filter(ProfileIsActiveFilter())
+            self.profiles[id(device)] = device["profiles"].filter(ProfileIsEnabledFilter())
         self.profiles[id(device)].addListener(monitor)
 
     def unmonitor(self, device):
