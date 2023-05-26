@@ -85,6 +85,19 @@ class ActiveListTest(TestCase):
         self.assertEqual(len(list), 1)
         self.assertEqual(list[0], "value2")
 
+    def testActiveListDeleteByValueNotification(self):
+        list = ActiveList(["value1", "value2"])
+        listenerMock = Mock()
+        list.addListener(listenerMock)
+        list.remove("value1")
+        listenerMock.onListChange.assert_called_once()
+        source, changes = listenerMock.onListChange.call_args.args
+        self.assertIs(source, list)
+        self.assertEqual(len(changes), 1)
+        self.assertIsInstance(changes[0], ActiveListIndexDeleted)
+        self.assertEqual(changes[0].index, 0)
+        self.assertEqual(changes[0].oldValue, 'value1')
+
     def testListInsert(self):
         list = ActiveList(["value1", "value2"])
         list.insert(1, "value1.5")
@@ -177,6 +190,7 @@ class ActiveListTest(TestCase):
         filteredList = list.filter(lambda x: x < 3)
         del list[1]
         self.assertEqual(len(filteredList), 1)
+        self.assertEqual(filteredList[0], 1)
 
     def testIndex(self):
         list = ActiveList([1, 2, 3, 4, 5])
@@ -245,3 +259,49 @@ class ActiveListTest(TestCase):
         del list[1]
         self.assertEqual(len(flattenedList), 6)
         self.assertEqual(flattenedList[2], 3)
+
+    def testListFilterRenumber(self):
+        list = ActiveList([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+
+        # a simple filter that does not affect our values
+        filteredList = list.filter(lambda x: x < 100)
+
+        # some sanity checks before we start modifying the list
+        self.assertEqual(len(filteredList), 10)
+        self.assertEqual(filteredList[4], 5)
+
+        # delete index 4 (value should be 5)
+        del list[4]
+        self.assertEqual(len(filteredList), 9)
+        self.assertEqual(filteredList[4], 6)
+
+        # modify an index > 4 to check the internal keymap
+        list[5] = 42
+        # expected result: value is passed on to the filteredList because it is still < 100
+        self.assertEqual(filteredList[5], 42)
+
+    def testFilterPropagation(self):
+        list = ActiveList([1, 2, 3, 4, 5])
+        filteredList = list.filter(lambda x: x < 100)
+
+        list[4] = 6
+        self.assertEqual(filteredList[4], 6)
+
+        list.insert(4, 5)
+        self.assertEqual(filteredList[4], 5)
+
+        del list[1]
+        self.assertEqual(filteredList[3], 5)
+
+    def testFilterPropagationWithActiveFilter(self):
+        list = ActiveList([1, 2, 3, 4, 5])
+        filteredList = list.filter(lambda x: x != 3)
+
+        list[4] = 6
+        self.assertEqual(filteredList[3], 6)
+
+        list.insert(4, 5)
+        self.assertEqual(filteredList[3], 5)
+
+        del list[1]
+        self.assertEqual(filteredList[2], 5)
