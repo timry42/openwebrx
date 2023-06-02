@@ -9,5 +9,17 @@ $(function(){
     $('#scheduler').schedulerInput();
     $('.exponential-input').exponentialInput();
     $('.device-log-messages').logMessages();
-    $('.profile-tabs').profileList();
+    $('.profile-tabs').draggableList({
+        dataType: 'application/x-profile',
+        itemSelector: '.profile',
+        idProperty: 'profile-id',
+        performMove: function(profileId, index) {
+            var url = $('.profile-tabs .device a').attr('href');
+            return $.ajax(url + '/moveprofile', {
+                data: JSON.stringify({profile_id: profileId, index: index}),
+                contentType: 'application/json',
+                method: 'POST'
+            });
+        }
+    });
 });
