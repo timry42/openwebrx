@@ -101,6 +101,11 @@ class SdrDeviceListController(AuthorizationMixin, BreadcrumbMixin, WebpageContro
             <div class="buttons container">
                 <a class="btn btn-success" href="newsdr">Add new device...</a>
             </div>
+            <div class="overlay overlay-spinner justify-content-center align-items-center">
+                <div class="spinner-border" role="status">
+                    <span class="sr-only">Loading...</span>
+                </div>
+            </div>
         """.format(
             devices="".join(render_device(value) for value in Config.get()["sdrs"])
         )
