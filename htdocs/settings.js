@@ -22,4 +22,16 @@ $(function(){
             });
         }
     });
+    $('.sdr-device-list').draggableList({
+        dataType: 'application/x-sdr-device',
+        itemSelector: '.sdr-device',
+        idProperty: 'device-id',
+        performMove: function(deviceId, index) {
+            return $.ajax(document.location.href + '/movedevice', {
+                data: JSON.stringify({device_id: deviceId, index: index}),
+                contentType: 'application/json',
+                method: 'POST'
+            });
+        }
+    })
 });

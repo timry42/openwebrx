@@ -73,7 +73,7 @@ class SdrDeviceListController(AuthorizationMixin, BreadcrumbMixin, WebpageContro
                 )
 
             return """
-                <li class="list-group-item">
+                <li class="list-group-item sdr-device" data-device-id="{device_id}">
                     <div class="row">
                         <div class="col-6">
                             <a href="{device_link}">
@@ -87,6 +87,7 @@ class SdrDeviceListController(AuthorizationMixin, BreadcrumbMixin, WebpageContro
                     </div>
                 </li>
             """.format(
+                device_id=device_id,
                 device_name=config["name"] if config["name"] else "[Unnamed device]",
                 device_link="{}settings/sdr/{}".format(self.get_document_root(), quote(device_id)),
                 state=state_info,
@@ -106,6 +107,26 @@ class SdrDeviceListController(AuthorizationMixin, BreadcrumbMixin, WebpageContro
 
     def indexAction(self):
         self.serve_template("settings/general.html", **self.template_variables())
+
+    def moveDevice(self):
+        try:
+            data = json.loads(self.get_body().decode("utf-8"))
+            if "device_id" not in data or "index" not in data:
+                self.send_response("{}", content_type="application/json", code=400)
+                return
+            device_id = data["device_id"]
+            index = data["index"]
+            config = Config.get()
+            devices = config["sdrs"]
+            device = next(d for d in devices if d["id"] == device_id)
+            devices.remove(device)
+            devices.insert(index, device)
+            config.store()
+            self.send_response("{}", content_type="application/json", code=203)
+        except json.JSONDecodeError:
+            self.send_response("{}", content_type="application/json", code=400)
+        except StopIteration:
+            self.send_response("{}", content_type="application/json", code=404)
 
 
 class SdrFormController(SettingsFormController, metaclass=ABCMeta):

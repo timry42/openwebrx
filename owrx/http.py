@@ -104,6 +104,12 @@ class Router(object):
                 "/settings/general", GeneralSettingsController, method="POST", options={"action": "processFormData"}
             ),
             StaticRoute("/settings/sdr", SdrDeviceListController),
+            StaticRoute(
+                "/settings/sdr/movedevice",
+                SdrDeviceListController,
+                method="POST",
+                options={"action": "moveDevice"}
+            ),
             StaticRoute("/settings/newsdr", NewSdrDeviceController),
             StaticRoute(
                 "/settings/newsdr", NewSdrDeviceController, method="POST", options={"action": "processFormData"}
