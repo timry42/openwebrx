@@ -123,10 +123,10 @@ class ActiveListFilterListener(ActiveListListener):
     def onListChange(self, source: "ActiveList", changes: list[ActiveListChange]):
         for change in changes:
             if isinstance(change, ActiveListIndexAdded):
+                idx = len([x for x in self.keyMap if x < change.index])
+                for i in range(idx, len(self.keyMap)):
+                    self.keyMap[i] += 1
                 if self.filter.predicate(change.newValue):
-                    idx = len([x for x in self.keyMap if x < change.index])
-                    for i in range(idx, len(self.keyMap)):
-                        self.keyMap[i] += 1
                     self.keyMap.insert(idx, change.index)
                     self.target.insert(idx, change.newValue)
                 self.filter.monitor(change.newValue, partial(self._onMonitor, change.newValue))
@@ -146,12 +146,12 @@ class ActiveListFilterListener(ActiveListListener):
                 self.filter.monitor(change.newValue, partial(self._onMonitor, change.newValue))
             elif isinstance(change, ActiveListIndexDeleted):
                 self.filter.unmonitor(change.oldValue)
+                idx = len([x for x in self.keyMap if x < change.index])
                 if change.index in self.keyMap:
-                    idx = self.keyMap.index(change.index)
                     del self.target[idx]
                     del self.keyMap[idx]
-                    for i in range(idx, len(self.keyMap)):
-                        self.keyMap[i] -= 1
+                for i in range(idx, len(self.keyMap)):
+                    self.keyMap[i] -= 1
 
     def _onMonitor(self, value):
         idx = self.source.index(value)

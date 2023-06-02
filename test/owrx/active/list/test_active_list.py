@@ -305,3 +305,31 @@ class ActiveListTest(TestCase):
 
         del list[1]
         self.assertEqual(filteredList[2], 5)
+
+    def testFilterDeletionWithFilteredIndices(self):
+        list = ActiveList([1, 2, 3, 4, 5])
+        filteredList = list.filter(lambda x: x > 3)
+
+        del list[0]
+        self.assertEqual(len(filteredList), 2)
+        self.assertEqual(filteredList[0], 4)
+
+        list[2] = 42
+        # update should not change length of filtered list
+        self.assertEqual(len(filteredList), 2)
+        # update should propagate
+        self.assertEqual(filteredList[0], 42)
+
+    def testFilterAdditionWithFilteredIndices(self):
+        list = ActiveList([1, 2, 3, 4, 5])
+        filteredList = list.filter(lambda x: x > 3)
+
+        list.insert(0, 0)
+        self.assertEqual(len(filteredList), 2)
+        self.assertEqual(filteredList[0], 4)
+
+        list[4] = 42
+        # update should not change length of filtered list
+        self.assertEqual(len(filteredList), 2)
+        # update should propagate
+        self.assertEqual(filteredList[0], 42)
