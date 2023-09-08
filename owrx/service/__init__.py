@@ -321,6 +321,9 @@ class ServiceHandler(SdrSourceEventClient):
         elif mod == "vdl2":
             from csdr.chain.dumpvdl2 import DumpVDL2
             return DumpVDL2()
+        elif mod == "acars":
+            from csdr.chain.acarsdec import AcarsDec
+            return AcarsDec()
 
         raise ValueError("unsupported service modulation: {}".format(mod))
 

@@ -206,6 +206,7 @@ class Modes(object):
             underlying=["empty"],
             bandpass=Bandpass(-2500, 2500),
             requirements=["acarsdec"],
+            service=True,
             squelch=False,
         )
     ]
