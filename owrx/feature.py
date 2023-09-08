@@ -88,6 +88,7 @@ class FeatureDetector(object):
         "ism": ["rtl_433"],
         "dumphfdl": ["dumphfdl"],
         "dumpvdl2": ["dumpvdl2"],
+        "acarsdec": ["acarsdec"],
     }
 
     def feature_availability(self):
@@ -627,3 +628,10 @@ class FeatureDetector(object):
         `dumpvdl2`.
         """
         return self.command_is_runnable("dumpvdl2 --version")
+
+    def has_acarsdec(self):
+        """
+        TODO
+        """
+        # acarsdec does not have "--version" but it's still better to run into invalid usage than have it hang
+        return self.command_is_runnable("acarsdec --version")

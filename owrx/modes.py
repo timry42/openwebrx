@@ -198,6 +198,14 @@ class Modes(object):
             bandpass=Bandpass(-12500, 12500),
             requirements=["dumpvdl2"],
             squelch=False,
+        ),
+        DigitalMode(
+            "acars",
+            "ACARS",
+            underlying=["empty"],
+            bandpass=Bandpass(-2500, 2500),
+            requirements=["acarsdec"],
+            squelch=False,
         )
     ]
 
