@@ -26,7 +26,7 @@ class WebpageController(TemplateController):
         return "../" * levels
 
     def header_variables(self):
-        variables = {"document_root": self.get_document_root()}
+        variables = { "document_root": self.get_document_root(), "map_type": "" }
         variables.update(ReceiverDetails().__dict__())
         return variables
 
