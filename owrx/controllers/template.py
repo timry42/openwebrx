@@ -1,12 +1,12 @@
 from owrx.controllers import Controller
 from owrx.details import ReceiverDetails
 from string import Template
-import pkg_resources
+from importlib import resources
 
 
 class TemplateController(Controller):
     def render_template(self, file, **vars):
-        file_content = pkg_resources.resource_string("htdocs", file).decode("utf-8")
+        file_content = resources.files("htdocs").joinpath(file).read_bytes().decode("utf-8")
         template = Template(file_content)
 
         return template.safe_substitute(**vars)
