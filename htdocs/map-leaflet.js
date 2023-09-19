@@ -110,42 +110,6 @@ var mapSources = [
     },
 ];
 
-var mapExtraLayers = [
-    {
-        name: 'OpenWeatherMap',
-        url: 'https://tile.openweathermap.org/map/{layer}/{z}/{x}/{y}.png?appid={apikey}',
-        options: {
-            layer: 'clouds_new',
-            attribution: 'Map data: &copy; OpenWeatherMap'
-        },
-        depends: "weather_key"
-    },
-    {
-        name: 'OpenWeatherMap',
-        url: 'https://tile.openweathermap.org/map/{layer}/{z}/{x}/{y}.png?appid={apikey}',
-        options: {
-            layer: 'precipitation_new',
-            attribution: 'Map data: &copy; OpenWeatherMap'
-        },
-        depends: "weather_key"
-    },
-    {
-        name: 'WeatherRadar-USA',
-        url: 'http://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/nexrad-n0q-900913/{z}/{x}/{y}.png',
-        options: {
-            attribution: 'Map data: &copy; Iowa State University'
-        },
-        depends: "!weather_key"
-    },
-    {
-        name: 'OpenSeaMap',
-        url: 'https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png',
-        options: {
-            attribution: 'Map data: &copy; <a href="http://www.openseamap.org">OpenSeaMap</a> contributors'
-        },
-    },
-];
-
 // reasonable default; will be overriden by server
 var retention_time = 2 * 60 * 60 * 1000;
 
@@ -324,27 +288,6 @@ MapManager.prototype.initializeMap = function(receiver_gps, api_key, weather_key
                     return invert ? !eligible : eligible;
                 }
 
-                function addMapOverlay (name) {
-                    $.each(mapExtraLayers, function (idx, mel) {
-                        if (mel.name === name) {
-                            if (!mel.layer) {
-                                mel.options.apikey = apiKeys[mel.depends];
-                                mel.layer = L.tileLayer(mel.url, mel.options);
-                            }
-                            if (map.hasLayer(mel.layer))
-                                map.removeLayer(mel.layer);
-                            map.addLayer(mel.layer);
-                        }
-                    });
-                }
-                function removeMapOverlay (name) {
-                    $.each(mapExtraLayers, function (idx, mel) {
-                        if (mel.name === name) {
-                            if (map.hasLayer(mel.layer))
-                                map.removeLayer(mel.layer);
-                        }
-                    });
-                }
                 $('#openwebrx-map-source').on('change', function (e) {
                     var id = this.value;
                     var m = mapSources[id];
@@ -353,32 +296,7 @@ MapManager.prototype.initializeMap = function(receiver_gps, api_key, weather_key
                             map.removeLayer(ms.layer);
                     });
                     map.addLayer(m.layer);
-                    $('#openwebrx-map-extralayers').find('input').each(function (idx, inp) {
-                        if ($(inp).is(':checked')) {
-                            addMapOverlay($(inp).attr('name'));
-                        }
-                    });
                 });
-                if (0) $.each(mapExtraLayers, function (idx, mel) { // AF: disabled and will be removed (with all the functions around this) upon accpeting the PR
-                    if (!isMapEligible(mel)) return;
-                    if ($('#openwebrx-map-layer-' + mel.name).length)
-                        return; // checkbox with that name exists already
-                    $('#openwebrx-map-extralayers').append(
-                        $('<label>' +
-                            '<input type="checkbox" ' +
-                            'name="' + mel.name + '" ' +
-                            'idx="' + idx + '" ' +
-                            'id="openwebrx-map-layer-' + mel.name + '"' +
-                            '>' + mel.name + '</label>'
-                        ).on('change', function (e) {
-                            if (e.target.checked) {
-                                addMapOverlay(mel.name);
-                            } else {
-                                removeMapOverlay(mel.name);
-                            }
-                        })
-                    );
-               });
 
                 // Create map legend selectors
                 self.setupLegendFilters(layerControl.legend);
