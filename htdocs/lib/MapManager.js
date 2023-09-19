@@ -28,16 +28,21 @@ function MapManager() {
     }, 1000);
 
     // When stuff loads...
-    $(function() {
+    $(function () {
         // Create clock display
         self.clock = new Clock($('#openwebrx-clock-utc'));
 
         // Clicking clock display toggles legend box on/off
-        $('#openwebrx-clock-utc').css('cursor', 'pointer').on('click', function() {
+        $('#openwebrx-legend-toggle').css({
+            'cursor': 'pointer',
+            'display': 'flex',
+            'justify-content': 'space-between'
+        }).on('click', function () {
             var el = document.getElementById('openwebrx-map-selectors');
             if (el) {
-                el.style.display = el.style.display === 'none'?
-                    'block' : 'none';
+                $(this).find('i').removeClass()
+                    .addClass('openwebrx-arrow-' + (el.style.display === 'none' ? 'down' : 'up'));
+                el.style.display = el.style.display === 'none' ? 'block' : 'none';
             }
         });
 

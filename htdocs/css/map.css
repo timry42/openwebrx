@@ -30,6 +30,24 @@ ul {
     user-select: none;
 }
 
+.openwebrx-arrow-up {
+    margin-top: 5px;
+    width: 0;
+    height: 0;
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-bottom: 10px solid black;
+}
+
+.openwebrx-arrow-down {
+    margin-top: 5px;
+    width: 0;
+    height: 0;
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-top: 10px solid black;
+}
+
 /* show it as soon as google maps has moved it to its container */
 .openwebrx-map .openwebrx-map-legend {
     display: block;
