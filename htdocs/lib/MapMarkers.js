@@ -280,7 +280,7 @@ FeatureMarker.prototype.getAnchorOffset = function() {
 
 FeatureMarker.prototype.getInfoHTML = function(name) {
     var nameString    = this.url? Marker.linkify(name, this.url) : name;
-    var commentString = this.comment? '<div align="center">' + this.comment + '</div>' : '';
+    var commentString = this.comment? '<p align="center">' + this.comment + '</p>' : '';
     var detailsString = '';
     var scheduleString = '';
     var distance = '';
@@ -294,29 +294,13 @@ FeatureMarker.prototype.getInfoHTML = function(name) {
         detailsString += Marker.makeListItem('Altitude', this.altitude.toFixed(0) + ' m');
     }
 
-    if (this.device) {
-        detailsString += Marker.makeListItem('Device', this.device.manufacturer?
-            this.device.device + ' by ' + this.device.manufacturer : this.device
-        );
-    }
-
-    if (this.antenna) {
-        detailsString += Marker.makeListItem('Antenna', Marker.truncate(this.antenna, 24));
-    }
-
-    if (this.freq) {
-        detailsString += Marker.makeListItem('Frequency', Marker.linkifyFreq(
-            this.freq, this.mmode? this.mmode:'fm'
-        ));
-    }
-
     if (this.mmode) {
         detailsString += Marker.makeListItem('Modulation', this.mmode.toUpperCase());
     }
 
     if (!this.comment && this.status && this.updated) {
-        commentString = '<div align="center">' + this.status
-            + ', last updated on ' + this.updated + '</div>';
+        commentString = '<p align="center">' + this.status
+            + ', last updated on ' + this.updated + '</p>';
     } else {
         if (this.status) {
             detailsString += Marker.makeListItem('Status', this.status);
@@ -333,31 +317,12 @@ FeatureMarker.prototype.getInfoHTML = function(name) {
         });
     }
 
-    if (this.schedule) {
-        for (var j=0 ; j<this.schedule.length ; ++j) {
-            var freq = this.schedule[j].freq;
-            var mode = this.schedule[j].mode;
-            var tune = mode === 'cw'?      freq - 800
-                     : mode === 'fax'?     freq - 1900
-                     : mode === 'rtty450'? freq - 1000
-                     : freq;
-
-            var name = ('0000' + this.schedule[j].time1).slice(-4)
-                + '&#8209;' + ('0000' + this.schedule[j].time2).slice(-4)
-                + '&nbsp;&nbsp;' + this.schedule[j].name;
-
-            scheduleString += Marker.makeListItem(name, Marker.linkifyFreq(
-                this.schedule[j].freq, mode? mode : 'am'
-            ));
-        }
-    }
-
     if (detailsString.length > 0) {
-        detailsString = '<p>' + Marker.makeListTitle('Details') + detailsString + '</p>';
+        detailsString = '<div>' + Marker.makeListTitle('Details') + detailsString + '</div>';
     }
 
     if (scheduleString.length > 0) {
-        scheduleString = '<p>' + Marker.makeListTitle('Schedule') + scheduleString + '</p>';
+        scheduleString = '<div>' + Marker.makeListTitle('Schedule') + scheduleString + '</div>';
     }
 
     return '<h3>' + nameString + distance + '</h3>'
@@ -497,12 +462,12 @@ AprsMarker.prototype.getInfoHTML = function(name) {
     var distance = '';
 
     if (this.comment) {
-        commentString += '<p>' + Marker.makeListTitle('Comment') + '<div>' +
-            this.comment + '</div></p>';
+        commentString += '<di>' + Marker.makeListTitle('Comment') + '<div>' +
+            this.comment + '</div></div>';
     }
 
     if (this.weather) {
-        weatherString += '<p>' + Marker.makeListTitle('Weather');
+        weatherString += '<div>' + Marker.makeListTitle('Weather');
 
         if (this.weather.temperature) {
             weatherString += Marker.makeListItem('Temperature', this.weather.temperature.toFixed(1) + ' oC');
@@ -541,7 +506,7 @@ AprsMarker.prototype.getInfoHTML = function(name) {
             weatherString += Marker.makeListItem('Snow', this.weather.snowfall.toFixed(1) + ' cm');
         }
 
-        weatherString += '</p>';
+        weatherString += '</div>';
     }
 
     if (this.height) {
@@ -600,7 +565,7 @@ AprsMarker.prototype.getInfoHTML = function(name) {
     }
 
     if (detailsString.length > 0) {
-        detailsString = '<p>' + Marker.makeListTitle('Details') + detailsString + '</p>';
+        detailsString = '<div>' + Marker.makeListTitle('Details') + detailsString + '</div>';
     }
 
     if (this.hops && this.hops.length > 0) {
@@ -640,7 +605,7 @@ AprsMarker.prototype.getInfoHTML = function(name) {
     }
 
     return '<h3>' + Marker.linkify(name, url, linkEntity) + distance + '</h3>'
-        + '<div align="center">' + timeString + ' using ' + this.mode
-        + ( this.band ? ' on ' + this.band : '' ) + '</div>'
+        + '<p align="center">' + timeString + ' using ' + this.mode
+        + ( this.band ? ' on ' + this.band : '' ) + '</p>'
         + commentString + weatherString + detailsString + hopsString;
 };
