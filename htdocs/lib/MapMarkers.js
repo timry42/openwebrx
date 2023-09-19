@@ -11,9 +11,6 @@ function MarkerManager() {
 
     // Colors used for marker types
     this.colors = {
-        'KiwiSDR'   : '#800000',
-        'WebSDR'    : '#000080',
-        'OpenWebRX' : '#004000',
         'HFDL'      : '#004000',
         'VDL2'      : '#000080',
         'ADSB'      : '#800000',
@@ -22,11 +19,6 @@ function MarkerManager() {
 
     // Symbols used for marker types
     this.symbols = {
-        'KiwiSDR'   : '&tridot;',
-        'WebSDR'    : '&tridot;',
-        'OpenWebRX' : '&tridot;',
-        'Stations'  : '&#9041;', //'&#9678;',
-        'Repeaters' : '&bowtie;',
         'APRS'      : '&#9872;',
         'AIS'       : '&apacir;',
         'HFDL'      : '&#9992;',
@@ -37,11 +29,7 @@ function MarkerManager() {
 
     // Marker type shown/hidden status
     this.enabled = {
-        'KiwiSDR'   : false,
-        'WebSDR'    : false,
-        'OpenWebRX' : false,
-        'Stations'  : false,
-        'Repeaters' : false
+        'APRS'      : true
     };
 }
 
@@ -231,7 +219,6 @@ Marker.prototype.remove = function() {
 
 //
 // Feature Marker
-//     Represents static map features, such as stations and receivers.
 // Derived classes have to implement:
 //     setMarkerOpacity()
 //
@@ -245,14 +232,7 @@ FeatureMarker.prototype.update = function(update) {
     this.mode     = update.mode;
     this.url      = update.location.url;
     this.comment  = update.location.comment;
-    // Receivers
     this.altitude = update.location.altitude;
-    this.device   = update.location.device;
-    this.antenna  = update.location.antenna;
-    // EIBI
-    this.schedule = update.location.schedule;
-    // Repeaters
-    this.freq     = update.location.freq;
     this.status   = update.location.status;
     this.updated  = update.location.updated;
     this.mmode    = update.location.mmode;
@@ -298,7 +278,7 @@ FeatureMarker.prototype.getAnchorOffset = function() {
     return [0, -this.symHeight/2];
 };
 
-FeatureMarker.prototype.getInfoHTML = function(name, receiverMarker = null) {
+FeatureMarker.prototype.getInfoHTML = function(name) {
     var nameString    = this.url? Marker.linkify(name, this.url) : name;
     var commentString = this.comment? '<div align="center">' + this.comment + '</div>' : '';
     var detailsString = '';
@@ -378,10 +358,6 @@ FeatureMarker.prototype.getInfoHTML = function(name, receiverMarker = null) {
 
     if (scheduleString.length > 0) {
         scheduleString = '<p>' + Marker.makeListTitle('Schedule') + scheduleString + '</p>';
-    }
-
-    if (receiverMarker) {
-        distance = ' at ' + Marker.distanceKm(receiverMarker.position, this.position) + ' km';
     }
 
     return '<h3>' + nameString + distance + '</h3>'
@@ -512,7 +488,7 @@ AprsMarker.prototype.getAnchorOffset = function() {
     return [0, -12];
 };
 
-AprsMarker.prototype.getInfoHTML = function(name, receiverMarker = null) {
+AprsMarker.prototype.getInfoHTML = function(name) {
     var timeString = moment(this.lastseen).fromNow();
     var commentString = '';
     var weatherString = '';
@@ -566,12 +542,6 @@ AprsMarker.prototype.getInfoHTML = function(name, receiverMarker = null) {
         }
 
         weatherString += '</p>';
-    }
-
-    if (this.device) {
-        detailsString += Marker.makeListItem('Device', this.device.manufacturer?
-          this.device.device + ' by ' + this.device.manufacturer : this.device
-        );
     }
 
     if (this.height) {
@@ -631,10 +601,6 @@ AprsMarker.prototype.getInfoHTML = function(name, receiverMarker = null) {
 
     if (detailsString.length > 0) {
         detailsString = '<p>' + Marker.makeListTitle('Details') + detailsString + '</p>';
-    }
-
-    if (receiverMarker) {
-        distance = ' at ' + Marker.distanceKm(receiverMarker.position, this.position) + ' km';
     }
 
     if (this.hops && this.hops.length > 0) {
