@@ -44,7 +44,7 @@ class MapController(WebpageController):
     def indexAction(self):
         # TODO check if we have a google maps api key first?
         # self.serve_template("map.html", **self.template_variables()) # AF: to be removed once the PR is accepted.
-        self.serve_template("map-%s.html" % self.map_type(), **self.template_variables())
+        self.serve_template("map-{}.html".format(self.map_type()), **self.template_variables())
 
     def header_variables(self):
         # Invert map type for the "map" toolbar icon
