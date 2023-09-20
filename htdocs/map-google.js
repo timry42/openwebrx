@@ -176,7 +176,7 @@ MapManager.prototype.processUpdates = function(updates) {
 
         switch (update.location.type) {
             case 'latlon':
-                var marker = self.mman.find(id);
+                var marker = self.mman.find(key);
                 var markerClass = GSimpleMarker;
                 var aprsOptions = {}
 
@@ -195,9 +195,9 @@ MapManager.prototype.processUpdates = function(updates) {
                     // when I have the time to spend to understand how.
                     // As of now, the planes are shown on the map, but with default icon.
                     marker = new markerClass();
-                    self.mman.add(id, marker);
+                    self.mman.add(key, marker);
                     marker.addListener('click', function() {
-                        showMarkerInfoWindow(id, marker.position);
+                        showMarkerInfoWindow(key, marker.position);
                     });
                 }
 
@@ -215,23 +215,23 @@ MapManager.prototype.processUpdates = function(updates) {
 
                 if (expectedIcao && expectedIcao === update.source.icao) {
                     map.panTo(marker.position);
-                    showMarkerInfoWindow(id, marker.position);
+                    showMarkerInfoWindow(key, marker.position);
                     expectedIcao = false;
                 }
 
-                if (expectedCallsign && expectedCallsign == id) {
+                if (expectedCallsign && expectedCallsign == key) {
                     map.panTo(marker.position);
-                    showMarkerInfoWindow(id, marker.position);
+                    showMarkerInfoWindow(key, marker.position);
                     expectedCallsign = false;
                 }
 
-                if (infoWindow && infoWindow.callsign && infoWindow.callsign == id) {
+                if (infoWindow && infoWindow.callsign && infoWindow.callsign == key) {
                     showMarkerInfoWindow(infoWindow.callsign, marker.position);
                 }
             break;
 
             case 'feature':
-                var marker = self.mman.find(id);
+                var marker = self.mman.find(key);
                 var options = {}
 
                 // If no symbol or color supplied, use defaults by type
@@ -250,9 +250,9 @@ MapManager.prototype.processUpdates = function(updates) {
                 if (!marker) {
                     marker = new GFeatureMarker();
                     self.mman.addType(update.mode);
-                    self.mman.add(id, marker);
+                    self.mman.add(key, marker);
                     marker.addListener('click', function() {
-                        showMarkerInfoWindow(id, marker.position);
+                        showMarkerInfoWindow(key, marker.position);
                     });
                 }
 
@@ -265,24 +265,24 @@ MapManager.prototype.processUpdates = function(updates) {
                 // Apply marker options
                 marker.setMarkerOptions(options);
 
-                if (expectedCallsign && expectedCallsign == id) {
+                if (expectedCallsign && expectedCallsign == key) {
                     map.panTo(marker.position);
-                    showMarkerInfoWindow(id, marker.position);
+                    showMarkerInfoWindow(key, marker.position);
                     expectedCallsign = false;
                 }
 
-                if (infoWindow && infoWindow.callsign && infoWindow.callsign == id) {
+                if (infoWindow && infoWindow.callsign && infoWindow.callsign == key) {
                     showMarkerInfoWindow(infoWindow.callsign, marker.position);
                 }
             break;
 
             case 'locator':
-                var rectangle = self.lman.find(id);
+                var rectangle = self.lman.find(key);
 
                 // If new item, create a new locator for it
                 if (!rectangle) {
                     rectangle = new GLocator();
-                    self.lman.add(id, rectangle);
+                    self.lman.add(key, rectangle);
                     rectangle.rect.addListener('click', function() {
                         showLocatorInfoWindow(rectangle.locator, rectangle.center);
                     });
