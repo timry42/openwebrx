@@ -278,7 +278,7 @@ FeatureMarker.prototype.getAnchorOffset = function() {
     return [0, -this.symHeight/2];
 };
 
-FeatureMarker.prototype.getInfoHTML = function(name) {
+FeatureMarker.prototype.getInfoHTML = function(name, receiverMarker = null) {
     var nameString    = this.url? Marker.linkify(name, this.url) : name;
     var commentString = this.comment? '<p align="center">' + this.comment + '</p>' : '';
     var detailsString = '';
@@ -323,6 +323,10 @@ FeatureMarker.prototype.getInfoHTML = function(name) {
 
     if (scheduleString.length > 0) {
         scheduleString = '<div>' + Marker.makeListTitle('Schedule') + scheduleString + '</div>';
+    }
+
+    if (receiverMarker) {
+        distance = ' at ' + Marker.distanceKm(receiverMarker.position, this.position) + ' km';
     }
 
     return '<h3>' + nameString + distance + '</h3>'
@@ -453,7 +457,7 @@ AprsMarker.prototype.getAnchorOffset = function() {
     return [0, -12];
 };
 
-AprsMarker.prototype.getInfoHTML = function(name) {
+AprsMarker.prototype.getInfoHTML = function(name, receiverMarker = null) {
     var timeString = moment(this.lastseen).fromNow();
     var commentString = '';
     var weatherString = '';
@@ -566,6 +570,10 @@ AprsMarker.prototype.getInfoHTML = function(name) {
 
     if (detailsString.length > 0) {
         detailsString = '<div>' + Marker.makeListTitle('Details') + detailsString + '</div>';
+    }
+
+    if (receiverMarker) {
+        distance = ' at ' + Marker.distanceKm(receiverMarker.position, this.position) + ' km';
     }
 
     if (this.hops && this.hops.length > 0) {
