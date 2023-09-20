@@ -188,10 +188,10 @@ Marker.makeListItem = function(name, value) {
 };
 
 // Get opacity value in the 0..1 range based on the given age.
-Marker.getOpacityScale = function(age) {
+Marker.getOpacityScale = function(age, ttl=retention_time) {
     var scale = 1;
-    if (age >= retention_time / 2) {
-        scale = (retention_time - age) / (retention_time / 2);
+    if (age >= ttl / 2) {
+        scale = (ttl - age) / (ttl / 2);
     }
     return Math.max(0, Math.min(1, scale));
 };
@@ -199,9 +199,9 @@ Marker.getOpacityScale = function(age) {
 // Set marker's opacity based on the supplied age. Returns TRUE
 // if the marker should still be visible, FALSE if it has to be
 // removed.
-Marker.prototype.age = function(age) {
-    if(age <= retention_time) {
-        this.setMarkerOpacity(Marker.getOpacityScale(age));
+Marker.prototype.age = function(age, ttl=retention_time) {
+    if(age <= ttl) {
+        this.setMarkerOpacity(Marker.getOpacityScale(age, ttl));
         return true;
     } else {
         this.setMap();
@@ -243,7 +243,7 @@ FeatureMarker.prototype.update = function(update) {
     this.setMarkerPosition(update.callsign, update.location.lat, update.location.lon);
 
     // Age locator
-    this.age(new Date().getTime() - update.lastseen);
+    this.age(new Date().getTime() - update.lastseen, update.location.ttl);
 };
 
 FeatureMarker.prototype.draw = function() {
@@ -369,7 +369,7 @@ AprsMarker.prototype.update = function(update) {
     this.setMarkerPosition(update.callsign, update.location.lat, update.location.lon);
 
     // Age locator
-    this.age(new Date().getTime() - update.lastseen);
+    this.age(new Date().getTime() - update.lastseen, update.location.ttl);
 };
 
 AprsMarker.prototype.isFacingEast = function(symbol) {

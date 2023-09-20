@@ -194,12 +194,12 @@ Locator.prototype.update = function(update) {
     this.setCenter(lat, lon);
 
     // Age locator
-    this.age(new Date().getTime() - update.lastseen);
+    this.age(new Date().getTime() - update.lastseen, update.location.ttl);
 };
 
-Locator.prototype.age = function(age) {
-    if (age <= retention_time) {
-        this.setOpacity(Marker.getOpacityScale(age));
+Locator.prototype.age = function(age, ttl=retention_time) {
+    if (age <= ttl) {
+        this.setOpacity(Marker.getOpacityScale(age, ttl));
         return true;
     } else {
         this.setMap();
