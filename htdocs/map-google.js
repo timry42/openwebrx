@@ -33,6 +33,7 @@ var query = window.location.search.replace(/^\?/, '').split('&').map(function(v)
 
 var expectedCallsign = query.callsign? decodeURIComponent(query.callsign) : null;
 var expectedLocator  = query.locator? query.locator : null;
+var expectedIcao     = query.icao? query.icao: null;
 
 // Get information bubble window
 function getInfoWindow() {
@@ -77,6 +78,21 @@ function showReceiverInfoWindow(marker) {
     );
     iw.open(map, marker);
 };
+
+var sourceToKey = function(source) {
+    // special treatment for special entities
+    // not just for display but also in key treatment in order not to overlap with other locations sent by the same callsign
+    if ('item' in source) return source['item'];
+    if ('object' in source) return source['object'];
+    if ('icao' in source) return source['icao'];
+    if ('flight' in source) return source['flight'];
+    var key = source.callsign;
+    if ('ssid' in source) key += '-' + source.ssid;
+    return key;
+};
+
+// we can reuse the same logic for displaying and indexing
+var sourceToString = sourceToKey;
 
 //
 // GOOGLE-SPECIFIC MAP MANAGER METHODS
@@ -156,11 +172,7 @@ MapManager.prototype.processUpdates = function(updates) {
     }
 
     updates.forEach(function(update) {
-        if (typeof update.source === 'undefined' || typeof update.source.callsign === 'undefined') {
-            console.error(update);
-            return;
-        }
-        var id = update.source.callsign + (update.source.ssid ? '-' + update.source.ssid : '');
+        var key = sourceToKey(update.source);
 
         switch (update.location.type) {
             case 'latlon':
@@ -177,6 +189,11 @@ MapManager.prototype.processUpdates = function(updates) {
 
                 // If new item, create a new marker for it
                 if (!marker) {
+                    // AF: here shall be created ICAO markers for planes.
+                    // either by adapting the PlaneMarker.js or by reusing the AprsMarkers as in OWRX+
+                    // I'll leave this to someone more competent or will try to implement it myself
+                    // when I have the time to spend to understand how.
+                    // As of now, the planes are shown on the map, but with default icon.
                     marker = new markerClass();
                     self.mman.add(id, marker);
                     marker.addListener('click', function() {
@@ -195,6 +212,12 @@ MapManager.prototype.processUpdates = function(updates) {
 
                 // Apply marker options
                 marker.setMarkerOptions(aprsOptions);
+
+                if (expectedIcao && expectedIcao === update.source.icao) {
+                    map.panTo(marker.position);
+                    showMarkerInfoWindow(id, marker.position);
+                    expectedIcao = false;
+                }
 
                 if (expectedCallsign && expectedCallsign == id) {
                     map.panTo(marker.position);

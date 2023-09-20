@@ -137,6 +137,7 @@ var query = window.location.search.replace(/^\?/, '').split('&').map(function(v)
 
 var expectedCallsign = query.callsign? decodeURIComponent(query.callsign) : null;
 var expectedLocator  = query.locator? query.locator : null;
+var expectedIcao     = query.icao? query.icao: null;
 
 // https://stackoverflow.com/a/46981806/420585
 function fetchStyleSheet(url, media = 'screen') {
@@ -171,6 +172,21 @@ function showMarkerInfoWindow(name, pos) {
     var marker = mapManager.mman.find(name);
     L.popup(pos, { content: marker.getInfoHTML(name, receiverMarker) }).openOn(map);
 };
+
+var sourceToKey = function(source) {
+    // special treatment for special entities
+    // not just for display but also in key treatment in order not to overlap with other locations sent by the same callsign
+    if ('item' in source) return source['item'];
+    if ('object' in source) return source['object'];
+    if ('icao' in source) return source['icao'];
+    if ('flight' in source) return source['flight'];
+    var key = source.callsign;
+    if ('ssid' in source) key += '-' + source.ssid;
+    return key;
+};
+
+// we can reuse the same logic for displaying and indexing
+var sourceToString = sourceToKey;
 
 //
 // Leaflet-SPECIFIC MAP MANAGER METHODS
@@ -315,15 +331,11 @@ MapManager.prototype.processUpdates = function(updates) {
     }
 
     updates.forEach(function(update) {
-        if (typeof update.source === 'undefined' || typeof update.source.callsign === 'undefined') {
-            console.error(update);
-            return;
-        }
-        var id = update.source.callsign + (update.source.ssid ? '-' + update.source.ssid : '');
+        var key = sourceToKey(update.source);
 
         switch (update.location.type) {
             case 'latlon':
-                var marker = self.mman.find(id);
+                var marker = self.mman.find(key);
                 var aprsOptions = {}
 
                 if (update.location.symbol) {
@@ -334,10 +346,15 @@ MapManager.prototype.processUpdates = function(updates) {
 
                 // If new item, create a new marker for it
                 if (!marker) {
+                    // AF: here shall be created ICAO markers for planes.
+                    // either by adapting the PlaneMarker.js or by reusing the AprsMarkers as in OWRX+
+                    // I'll leave this to someone more competent or will try to implement it myself
+                    // when I have the time to spend to understand how.
+                    // As of now, the planes are shown on the map, but with default icon.
                     marker = new LAprsMarker();
-                    self.mman.add(id, marker);
+                    self.mman.add(key, marker);
                     marker.addListener('click', function() {
-                        showMarkerInfoWindow(id, marker.getPos());
+                        showMarkerInfoWindow(key, marker.getPos());
                     });
 
                     // If displaying a symbol, create it
@@ -356,15 +373,21 @@ MapManager.prototype.processUpdates = function(updates) {
                 // Apply marker options
                 marker.setMarkerOptions(aprsOptions);
 
-                if (expectedCallsign && expectedCallsign == id) {
+                if (expectedIcao && expectedIcao === key) {
                     map.setView(marker.getPos());
-                    showMarkerInfoWindow(id, marker.getPos());
+                    showMarkerInfoWindow(key, marker.getPos());
+                    expectedIcao = false;
+                }
+
+                if (expectedCallsign && expectedCallsign == key) {
+                    map.setView(marker.getPos());
+                    showMarkerInfoWindow(key, marker.getPos());
                     expectedCallsign = false;
                 }
             break;
 
             case 'feature':
-                var marker = self.mman.find(id);
+                var marker = self.mman.find(key);
                 var options = {};
 
                 // If no symbol or color supplied, use defaults by type
@@ -391,9 +414,9 @@ MapManager.prototype.processUpdates = function(updates) {
                     }));
 
                     self.mman.addType(update.mode);
-                    self.mman.add(id, marker);
+                    self.mman.add(key, marker);
                     marker.addListener('click', function() {
-                        showMarkerInfoWindow(id, marker.getPos());
+                        showMarkerInfoWindow(key, marker.getPos());
                     });
                 }
 
@@ -406,20 +429,20 @@ MapManager.prototype.processUpdates = function(updates) {
                 // Apply marker options
                 marker.setMarkerOptions(options);
 
-                if (expectedCallsign && expectedCallsign == id) {
+                if (expectedCallsign && expectedCallsign == key) {
                     map.setView(marker.getPos());
-                    showMarkerInfoWindow(id, marker.getPos());
+                    showMarkerInfoWindow(key, marker.getPos());
                     expectedCallsign = false;
                 }
             break;
 
             case 'locator':
-                var rectangle = self.lman.find(id);
+                var rectangle = self.lman.find(key);
 
                 // If new item, create a new locator for it
                 if (!rectangle) {
                     rectangle = new LLocator();
-                    self.lman.add(id, rectangle);
+                    self.lman.add(key, rectangle);
                     rectangle.addListener('click', function() {
                         showLocatorInfoWindow(rectangle.locator, rectangle.center);
                     });
