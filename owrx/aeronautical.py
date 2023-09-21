@@ -86,8 +86,13 @@ class AcarsProcessor(JsonParser, metaclass=ABCMeta):
                     else:
                         source = FlightSource(flight_id)
                     Map.getSharedInstance().updateLocation(
-                        source, AirplaneLocation(msg), "ACARS over {}".format(self.mode)
+                        source, AirplaneLocation(msg), self.getMode()
                     )
+
+    def getMode(self):
+        if self.mode == "ACARS":
+            return self.mode
+        return "ACARS over {}".format(self.mode)
 
     def processFlight(self, raw):
         return self.flightRegex.sub(r"\g<1>\g<2>", raw)
