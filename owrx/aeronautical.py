@@ -56,6 +56,10 @@ class AcarsProcessor(JsonParser, metaclass=ABCMeta):
         else:
             return
 
+        # compatibility for acarsdec
+        if "libacars" in acars:
+            acars = acars["libacars"]
+
         if "arinc622" in acars:
             arinc622 = acars["arinc622"]
             if "adsc" in arinc622:
