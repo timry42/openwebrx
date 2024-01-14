@@ -1,4 +1,4 @@
-FROM debian:bullseye-slim
+FROM debian:bookworm-slim
 
 COPY docker/files/js8call/js8call-hamlib.patch \
      docker/files/wsjtx/wsjtx.patch \
@@ -23,6 +23,6 @@ VOLUME /etc/openwebrx
 VOLUME /var/lib/openwebrx
 
 ENV S6_CMD_ARG0="/opt/openwebrx/docker/scripts/run.sh"
-CMD []
+CMD [""]
 
 EXPOSE 8073

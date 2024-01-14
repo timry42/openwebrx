@@ -135,8 +135,12 @@ DemodulatorPanel.prototype.setMode = function(requestedModulation, underlyingMod
 
     if (mode.type === 'digimode') {
         this.demodulator.set_secondary_demod(mode.modulation);
-        if (mode.bandpass) {
-            this.demodulator.setBandpass(mode.bandpass);
+        var uMode = Modes.findByModulation(underlyingModulation);
+        var bandpass = mode.bandpass || (uMode && uMode.bandpass);
+        if (bandpass) {
+            this.demodulator.setBandpass(bandpass);
+        } else {
+            this.demodulator.disableBandpass();
         }
     } else {
         this.demodulator.set_secondary_demod(false);
@@ -158,11 +162,14 @@ DemodulatorPanel.prototype.disableDigiMode = function() {
 DemodulatorPanel.prototype.updatePanels = function() {
     var modulation = this.getDemodulator().get_secondary_demod();
     $('#openwebrx-panel-digimodes').attr('data-mode', modulation);
-    toggle_panel("openwebrx-panel-digimodes", !!modulation);
+    var mode = Modes.findByModulation(modulation);
+    toggle_panel("openwebrx-panel-digimodes", modulation && (!mode || mode.secondaryFft));
+    // WSJT-X modes share the same panel
     toggle_panel("openwebrx-panel-wsjt-message", ['ft8', 'wspr', 'jt65', 'jt9', 'ft4', 'fst4', 'fst4w', "q65", "msk144"].indexOf(modulation) >= 0);
-    toggle_panel("openwebrx-panel-js8-message", modulation === "js8");
-    toggle_panel("openwebrx-panel-packet-message", modulation === "packet");
-    toggle_panel("openwebrx-panel-pocsag-message", modulation === "pocsag");
+    // these modes come with their own
+    ['js8', 'packet', 'pocsag', 'adsb', 'ism', 'hfdl', 'vdl2'].forEach(function(m) {
+        toggle_panel('openwebrx-panel-' + m + '-message', modulation === m);
+    });
 
     modulation = this.getDemodulator().get_modulation();
     var showing = 'openwebrx-panel-metadata-' + modulation;
@@ -371,6 +378,6 @@ DemodulatorPanel.prototype.setTuningPrecision = function(precision) {
 $.fn.demodulatorPanel = function(){
     if (!this.data('panel')) {
         this.data('panel', new DemodulatorPanel(this));
-    };
+    }
     return this.data('panel');
 };

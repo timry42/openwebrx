@@ -18,7 +18,7 @@ function cmakebuild() {
 
 cd /tmp
 
-STATIC_PACKAGES="libfftw3-bin libprotobuf23 libsamplerate0 libicu67 libudev1"
+STATIC_PACKAGES="libfftw3-single3 libprotobuf32 libsamplerate0 libicu72 libudev1"
 BUILD_PACKAGES="git autoconf automake libtool libfftw3-dev pkg-config cmake make gcc g++ libprotobuf-dev protobuf-compiler libsamplerate-dev libicu-dev libpython3-dev libudev-dev"
 apt-get update
 apt-get -y install --no-install-recommends $STATIC_PACKAGES $BUILD_PACKAGES
@@ -32,11 +32,13 @@ popd
 rm -rf js8py
 
 git clone https://github.com/jketterl/csdr.git
-cmakebuild csdr 0.18.1
+# latest develop as of 2023-09-08 (execmodule improvements)
+cmakebuild csdr 764767933ed2b242190285f8ff56b11d80c7d530
 
 git clone https://github.com/jketterl/pycsdr.git
 cd pycsdr
-git checkout 0.18.1
+# latest develop as of 2023-08-21 (death of CallbackWriter))
+git checkout 77b3709c545f510b52c7cea2e300e2e1613038e2
 ./setup.py install install_headers
 cd ..
 rm -rf pycsdr
@@ -44,14 +46,17 @@ rm -rf pycsdr
 git clone https://github.com/jketterl/codecserver.git
 mkdir -p /usr/local/etc/codecserver
 cp codecserver/conf/codecserver.conf /usr/local/etc/codecserver
-cmakebuild codecserver 0.2.0
+# latest develop as of 2023-07-03 (error handling)
+cmakebuild codecserver 0f3703ce285acd85fcd28f6620d7795dc173cb50
 
 git clone https://github.com/jketterl/digiham.git
-cmakebuild digiham 0.6.1
+# latest develop as of 2023-07-02 (codecserver protocol version)
+cmakebuild digiham 262e6dfd9a2c56778bd4b597240756ad0fb9861d
 
 git clone https://github.com/jketterl/pydigiham.git
 cd pydigiham
-git checkout 0.6.1
+# latest develop as of 2023-06-30 (csdr cleanup)
+git checkout 894aa87ea9a3534d1e7109da86194c7cd5e0b7c7
 ./setup.py install
 cd ..
 rm -rf pydigiham

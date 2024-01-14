@@ -267,12 +267,15 @@ class ServiceHandler(SdrSourceEventClient):
         secondaryDemod = self._getSecondaryDemodulator(modeObject.modulation)
         center_freq = source.getProps()["center_freq"]
         sampleRate = source.getProps()["samp_rate"]
-        bandpass = modeObject.get_bandpass()
         if isinstance(secondaryDemod, DialFrequencyReceiver):
             secondaryDemod.setDialFrequency(dial["frequency"])
 
         chain = ServiceDemodulatorChain(demod, secondaryDemod, sampleRate, dial["frequency"] - center_freq)
-        chain.setBandPass(bandpass.low_cut, bandpass.high_cut)
+        bandpass = modeObject.get_bandpass()
+        if bandpass:
+            chain.setBandPass(bandpass.low_cut, bandpass.high_cut)
+        else:
+            chain.setBandPass(None, None)
         chain.setReader(source.getBuffer().getReader())
 
         # dummy buffer, we don't use the output right now
@@ -310,6 +313,15 @@ class ServiceHandler(SdrSourceEventClient):
         elif mod == "packet":
             from csdr.chain.digimodes import PacketDemodulator
             return PacketDemodulator(service=True)
+        elif mod == "adsb":
+            from csdr.chain.dump1090 import Dump1090
+            return Dump1090()
+        elif mod == "hfdl":
+            from csdr.chain.dumphfdl import DumpHFDL
+            return DumpHFDL()
+        elif mod == "vdl2":
+            from csdr.chain.dumpvdl2 import DumpVDL2
+            return DumpVDL2()
 
         raise ValueError("unsupported service modulation: {}".format(mod))
 

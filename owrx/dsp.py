@@ -1,5 +1,5 @@
 from owrx.source import SdrSourceEventClient, SdrSourceState, SdrClientClass
-from owrx.property import PropertyStack, PropertyLayer, PropertyValidator
+from owrx.property import PropertyStack, PropertyLayer, PropertyValidator, PropertyDeleted, PropertyDeletion
 from owrx.property.validators import OrValidator, RegexValidator, BoolValidator
 from owrx.modes import Modes, DigitalMode
 from csdr.chain import Chain
@@ -40,7 +40,6 @@ class ClientDemodulatorChain(Chain):
         self.hdOutputRate = hdOutputRate
         self.secondaryDspEventReceiver = secondaryDspEventReceiver
         self.selector = Selector(sampleRate, outputRate)
-        self.selector.setBandpass(-4000, 4000)
         self.selectorBuffer = Buffer(Format.COMPLEX_FLOAT)
         self.audioBuffer = None
         self.demodulator = demod
@@ -97,8 +96,6 @@ class ClientDemodulatorChain(Chain):
             # it's expected and should be mended when swapping out the demodulator in the next step
             pass
 
-        self.replace(1, demodulator)
-
         if self.demodulator is not None:
             self.demodulator.stop()
 
@@ -107,7 +104,6 @@ class ClientDemodulatorChain(Chain):
         self.selector.setOutputRate(self._getSelectorOutputRate())
 
         clientRate = self._getClientAudioInputRate()
-        self.clientAudioChain.setInputRate(clientRate)
         self.demodulator.setSampleRate(clientRate)
 
         if isinstance(self.demodulator, DeemphasisTauChain):
@@ -116,11 +112,14 @@ class ClientDemodulatorChain(Chain):
         self._updateDialFrequency()
         self._syncSquelch()
 
-        outputRate = self.hdOutputRate if isinstance(self.demodulator, HdAudio) else self.outputRate
-        self.clientAudioChain.setClientRate(outputRate)
-
         if self.metaWriter is not None and isinstance(demodulator, MetaProvider):
             demodulator.setMetaWriter(self.metaWriter)
+
+        self.replace(1, demodulator)
+
+        self.clientAudioChain.setInputRate(clientRate)
+        outputRate = self.hdOutputRate if isinstance(self.demodulator, HdAudio) else self.outputRate
+        self.clientAudioChain.setClientRate(outputRate)
 
     def stopDemodulator(self):
         if self.demodulator is None:
@@ -134,6 +133,8 @@ class ClientDemodulatorChain(Chain):
 
         self.demodulator.stop()
         self.demodulator = None
+
+        self.setSecondaryDemodulator(None)
 
     def _getSelectorOutputRate(self):
         if isinstance(self.demodulator, FixedIfSampleRateChain):
@@ -167,7 +168,8 @@ class ClientDemodulatorChain(Chain):
 
         clientRate = self._getClientAudioInputRate()
         self.clientAudioChain.setInputRate(clientRate)
-        self.demodulator.setSampleRate(clientRate)
+        if self.demodulator is not None:
+            self.demodulator.setSampleRate(clientRate)
 
         self._updateDialFrequency()
         self._syncSquelch()
@@ -193,11 +195,11 @@ class ClientDemodulatorChain(Chain):
                 self.secondaryDemodulator.setReader(self.audioBuffer.getReader())
             self.secondaryDemodulator.setWriter(self.secondaryWriter)
 
-        if self.secondaryDemodulator is None and self.secondaryFftChain is not None:
+        if (self.secondaryDemodulator is None or not self.secondaryDemodulator.isSecondaryFftShown()) and self.secondaryFftChain is not None:
             self.secondaryFftChain.stop()
             self.secondaryFftChain = None
 
-        if self.secondaryDemodulator is not None and self.secondaryFftChain is None:
+        if (self.secondaryDemodulator is not None and self.secondaryDemodulator.isSecondaryFftShown()) and self.secondaryFftChain is None:
             self._createSecondaryFftChain()
 
         if self.secondaryFftChain is not None:
@@ -212,15 +214,15 @@ class ClientDemodulatorChain(Chain):
         self.secondaryFftChain.setWriter(self.secondaryFftWriter)
 
     def _syncSquelch(self):
-        if not self.demodulator.supportsSquelch() or (self.secondaryDemodulator is not None and not self.secondaryDemodulator.supportsSquelch()):
+        if self.demodulator is not None and not self.demodulator.supportsSquelch() or (self.secondaryDemodulator is not None and not self.secondaryDemodulator.supportsSquelch()):
             self.selector.setSquelchLevel(-150)
         else:
             self.selector.setSquelchLevel(self.squelchLevel)
 
-    def setLowCut(self, lowCut):
+    def setLowCut(self, lowCut: Union[float, None]):
         self.selector.setLowCut(lowCut)
 
-    def setHighCut(self, highCut):
+    def setHighCut(self, highCut: Union[float, None]):
         self.selector.setHighCut(highCut)
 
     def setBandpass(self, lowCut, highCut):
@@ -366,7 +368,7 @@ class ClientDemodulatorChain(Chain):
     def getSecondaryFftOutputFormat(self) -> Format:
         if self.secondaryFftCompression == "adpcm":
             return Format.CHAR
-        return Format.SHORT
+        return Format.FLOAT
 
     def setWfmDeemphasisTau(self, tau: float) -> None:
         if tau == self.wfmDeemphasisTau:
@@ -459,6 +461,10 @@ class DspManager(SdrSourceEventClient, ClientDemodulatorSecondaryDspEventClient)
                 if mode.bandpass:
                     bpf = [mode.bandpass.low_cut, mode.bandpass.high_cut]
                     self.chain.setBandpass(*bpf)
+                    self.props["low_cut"] = mode.bandpass.low_cut
+                    self.props["high_cut"] = mode.bandpass.high_cut
+                else:
+                    self.chain.setBandpass(None, None)
             else:
                 # TODO modes should be mandatory
                 self.setDemodulator(self.props["start_mod"])
@@ -470,7 +476,7 @@ class DspManager(SdrSourceEventClient, ClientDemodulatorSecondaryDspEventClient)
 
         self.subscriptions = [
             self.props.wireProperty("audio_compression", self.setAudioCompression),
-            self.props.wireProperty("fft_compression", self.chain.setSecondaryFftCompression),
+            self.props.wireProperty("fft_compression", self.setSecondaryFftCompression),
             self.props.wireProperty("fft_voverlap_factor", self.chain.setSecondaryFftOverlapFactor),
             self.props.wireProperty("fft_fps", self.chain.setSecondaryFftFps),
             self.props.wireProperty("digimodes_fft_size", self.setSecondaryFftSize),
@@ -480,8 +486,8 @@ class DspManager(SdrSourceEventClient, ClientDemodulatorSecondaryDspEventClient)
             self.props.wireProperty("offset_freq", self.chain.setFrequencyOffset),
             self.props.wireProperty("center_freq", self.chain.setCenterFrequency),
             self.props.wireProperty("squelch_level", self.chain.setSquelchLevel),
-            self.props.wireProperty("low_cut", self.chain.setLowCut),
-            self.props.wireProperty("high_cut", self.chain.setHighCut),
+            self.props.wireProperty("low_cut", self.setLowCut),
+            self.props.wireProperty("high_cut", self.setHighCut),
             self.props.wireProperty("mod", self.setDemodulator),
             self.props.wireProperty("dmr_filter", self.chain.setSlotFilter),
             self.props.wireProperty("wfm_deemphasis_tau", self.chain.setWfmDeemphasisTau),
@@ -554,6 +560,9 @@ class DspManager(SdrSourceEventClient, ClientDemodulatorSecondaryDspEventClient)
         elif demod == "freedv":
             from csdr.chain.freedv import FreeDV
             return FreeDV()
+        elif demod == "empty":
+            from csdr.chain.analog import Empty
+            return Empty()
 
     def setDemodulator(self, mod):
         self.chain.stopDemodulator()
@@ -600,6 +609,27 @@ class DspManager(SdrSourceEventClient, ClientDemodulatorSecondaryDspEventClient)
         elif mod == "bpsk63":
             from csdr.chain.digimodes import PskDemodulator
             return PskDemodulator(62.5)
+        elif mod == "rtty170":
+            from csdr.chain.digimodes import RttyDemodulator
+            return RttyDemodulator(45.45, 170)
+        elif mod == "rtty450":
+            from csdr.chain.digimodes import RttyDemodulator
+            return RttyDemodulator(50, 450, invert=True)
+        elif mod == "rtty85":
+            from csdr.chain.digimodes import RttyDemodulator
+            return RttyDemodulator(50, 85, invert=True)
+        elif mod == "adsb":
+            from csdr.chain.dump1090 import Dump1090
+            return Dump1090()
+        elif mod == "ism":
+            from csdr.chain.rtl433 import Rtl433
+            return Rtl433()
+        elif mod == "hfdl":
+            from csdr.chain.dumphfdl import DumpHFDL
+            return DumpHFDL()
+        elif mod == "vdl2":
+            from csdr.chain.dumpvdl2 import DumpVDL2
+            return DumpVDL2()
 
     def setSecondaryDemodulator(self, mod):
         demodulator = self._getSecondaryDemodulator(mod)
@@ -616,6 +646,23 @@ class DspManager(SdrSourceEventClient, ClientDemodulatorSecondaryDspEventClient)
             buffer = Buffer(self.chain.getOutputFormat())
             self.chain.setWriter(buffer)
             self.wireOutput(self.audioOutput, buffer)
+
+    def setSecondaryFftCompression(self, compression):
+        try:
+            self.chain.setSecondaryFftCompression(compression)
+        except ValueError:
+            # wrong output format... need to re-wire
+            pass
+
+        buffer = Buffer(self.chain.getSecondaryFftOutputFormat())
+        self.chain.setSecondaryFftWriter(buffer)
+        self.wireOutput("secondary_fft", buffer)
+
+    def setLowCut(self, lowCut: Union[float, PropertyDeletion]):
+        self.chain.setLowCut(None if lowCut is PropertyDeleted else lowCut)
+
+    def setHighCut(self, highCut: Union[float, PropertyDeletion]):
+        self.chain.setHighCut(None if highCut is PropertyDeleted else highCut)
 
     def start(self):
         if self.sdrSource.isAvailable():
@@ -652,7 +699,7 @@ class DspManager(SdrSourceEventClient, ClientDemodulatorSecondaryDspEventClient)
             b = data.tobytes()
             # If we know it's not pickled, let us not unpickle
             if len(b) < 2 or b[0] != 0x80 or not 3 <= b[1] <= pickle.HIGHEST_PROTOCOL:
-                callback(b.decode("ascii"))
+                callback(b.decode("ascii", errors="replace"))
                 return
 
             io = BytesIO(b)
@@ -662,7 +709,7 @@ class DspManager(SdrSourceEventClient, ClientDemodulatorSecondaryDspEventClient)
             except EOFError:
                 pass
             except pickle.UnpicklingError:
-                callback(b.decode("ascii"))
+                callback(b.decode("ascii", errors="replace"))
 
         return unpickler
 
@@ -685,7 +732,11 @@ class DspManager(SdrSourceEventClient, ClientDemodulatorSecondaryDspEventClient)
             self.setProperty(k, v)
 
     def setProperty(self, prop, value):
-        self.localProps[prop] = value
+        if value is None:
+            if prop in self.localProps:
+                del self.localProps[prop]
+        else:
+            self.localProps[prop] = value
 
     def getClientClass(self) -> SdrClientClass:
         return SdrClientClass.USER

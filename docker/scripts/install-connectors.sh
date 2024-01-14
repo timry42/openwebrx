@@ -18,14 +18,15 @@ function cmakebuild() {
 
 cd /tmp
 
+STATIC_PACKAGES="libfftw3-single3"
 BUILD_PACKAGES="git cmake make gcc g++ libsamplerate-dev libfftw3-dev"
 
 apt-get update
-apt-get -y install --no-install-recommends $BUILD_PACKAGES
+apt-get -y install --no-install-recommends $STATIC_PACKAGES $BUILD_PACKAGES
 
 git clone https://github.com/jketterl/owrx_connector.git
-# latest develop as of 2023-03-18 (added --listdriver option)
-cmakebuild owrx_connector beda260363c0e77617d4e17ef864e1f5c3fd86b2
+# latest develop as of 2024-01-01 (fixed startup race condition)
+cmakebuild owrx_connector 62219d40e180abb539ad61fcd9625b90c34f0e26
 
 apt-get -y purge --autoremove $BUILD_PACKAGES
 apt-get clean

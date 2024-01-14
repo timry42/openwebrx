@@ -1,6 +1,7 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from owrx.config import Config
 from owrx.bands import Band
+from abc import abstractmethod, ABC, ABCMeta
 import threading
 import time
 import sys
@@ -8,10 +9,24 @@ import sys
 import logging
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 
 class Location(object):
+    def getTTL(self) -> timedelta:
+        pm = Config.get()
+        return timedelta(seconds=pm["map_position_retention_time"])
+
+    def __dict__(self):
+        return {
+            "ttl": self.getTTL().total_seconds() * 1000
+        }
+
+
+class Source(ABC):
+    @abstractmethod
+    def getKey(self) -> str:
+        pass
+
     def __dict__(self):
         return {}
 
@@ -61,7 +76,7 @@ class Map(object):
         client.write_update(
             [
                 {
-                    "source": record["source"],
+                    "source": record["source"].__dict__(),
                     "location": record["location"].__dict__(),
                     "lastseen": record["updated"].timestamp() * 1000,
                     "mode": record["mode"],
@@ -77,36 +92,38 @@ class Map(object):
         except ValueError:
             pass
 
-    def _sourceToKey(self, source):
-        if "ssid" in source:
-            return "{callsign}-{ssid}".format(**source)
-        return source["callsign"]
-
-    def updateLocation(self, source, loc: Location, mode: str, band: Band = None):
-        ts = datetime.now()
-        key = self._sourceToKey(source)
+    def updateLocation(self, source: Source, loc: Location, mode: str, band: Band = None, timestamp: datetime = None):
+        if timestamp is None:
+            timestamp = datetime.now(timezone.utc)
+        else:
+            # if we get an external timestamp, make sure it's not already expired
+            if datetime.now(timezone.utc) - loc.getTTL() > timestamp:
+                return
+        key = source.getKey()
         with self.positionsLock:
-            self.positions[key] = {"source": source, "location": loc, "updated": ts, "mode": mode, "band": band}
+            if isinstance(loc, IncrementalUpdate) and key in self.positions:
+                loc.update(self.positions[key]["location"])
+            self.positions[key] = {"source": source, "location": loc, "updated": timestamp, "mode": mode, "band": band}
         self.broadcast(
             [
                 {
-                    "source": source,
+                    "source": source.__dict__(),
                     "location": loc.__dict__(),
-                    "lastseen": ts.timestamp() * 1000,
+                    "lastseen": timestamp.timestamp() * 1000,
                     "mode": mode,
                     "band": band.getName() if band is not None else None,
                 }
             ]
         )
 
-    def touchLocation(self, source):
+    def touchLocation(self, source: Source):
         # not implemented on the client side yet, so do not use!
-        ts = datetime.now()
-        key = self._sourceToKey(source)
+        ts = datetime.now(timezone.utc)
+        key = source.getKey()
         with self.positionsLock:
             if key in self.positions:
                 self.positions[key]["updated"] = ts
-        self.broadcast([{"source": source, "lastseen": ts.timestamp() * 1000}])
+        self.broadcast([{"source": source.__dict__(), "lastseen": ts.timestamp() * 1000}])
 
     def removeLocation(self, key):
         with self.positionsLock:
@@ -114,11 +131,12 @@ class Map(object):
             # TODO broadcast removal to clients
 
     def removeOldPositions(self):
-        pm = Config.get()
-        retention = timedelta(seconds=pm["map_position_retention_time"])
-        cutoff = datetime.now() - retention
+        now = datetime.now(timezone.utc)
 
-        to_be_removed = [key for (key, pos) in self.positions.items() if pos["updated"] < cutoff]
+        with self.positionsLock:
+            to_be_removed = [
+                key for (key, pos) in self.positions.items() if now - pos["location"].getTTL() > pos["updated"]
+            ]
         for key in to_be_removed:
             self.removeLocation(key)
 
@@ -136,7 +154,10 @@ class LatLngLocation(Location):
         self.lon = lon
 
     def __dict__(self):
-        res = {"type": "latlon", "lat": self.lat, "lon": self.lon}
+        res = super().__dict__()
+        res.update(
+            {"type": "latlon", "lat": self.lat, "lon": self.lon}
+        )
         return res
 
 
@@ -145,4 +166,25 @@ class LocatorLocation(Location):
         self.locator = locator
 
     def __dict__(self):
-        return {"type": "locator", "locator": self.locator}
+        res = super().__dict__()
+        res.update(
+            {"type": "locator", "locator": self.locator}
+        )
+        return res
+
+
+class IncrementalUpdate(Location, metaclass=ABCMeta):
+    @abstractmethod
+    def update(self, previousLocation: Location):
+        pass
+
+
+class CallsignSource(Source):
+    def __init__(self, callsign: str):
+        self.callsign = callsign
+
+    def getKey(self) -> str:
+        return "callsign:{}".format(self.callsign)
+
+    def __dict__(self):
+        return {"callsign": self.callsign}

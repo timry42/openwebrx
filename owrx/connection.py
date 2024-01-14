@@ -156,6 +156,7 @@ class OpenWebRxReceiverClient(OpenWebRxClient, SdrSourceEventClient):
         "fft_compression",
         "max_clients",
         "tuning_precision",
+        "aircraft_tracking_service",
     ]
 
     def __init__(self, conn):
@@ -461,6 +462,7 @@ class OpenWebRxReceiverClient(OpenWebRxClient, SdrSourceEventClient):
                 res["bandpass"] = {"low_cut": m.bandpass.low_cut, "high_cut": m.bandpass.high_cut}
             if isinstance(m, DigitalMode):
                 res["underlying"] = m.underlying
+                res["secondaryFft"] = m.secondaryFft
             return res
 
         self.send({"type": "modes", "value": [to_json(m) for m in modes]})
@@ -474,11 +476,11 @@ class MapConnection(OpenWebRxClient):
         filtered_config = pm.filter(
             "google_maps_api_key",
             "receiver_gps",
-            "map_position_retention_time",
             "callsign_service",
+            "aircraft_tracking_service",
             "receiver_name",
         )
-        filtered_config.wire(self.write_config)
+        self.configSub = filtered_config.wire(self.write_config)
 
         self.write_config(filtered_config.__dict__())
 
@@ -489,6 +491,7 @@ class MapConnection(OpenWebRxClient):
 
     def close(self, error: bool = False):
         Map.getSharedInstance().removeClient(self)
+        self.configSub.cancel()
         super().close(error)
 
     def write_config(self, cfg):

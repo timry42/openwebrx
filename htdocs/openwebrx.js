@@ -619,11 +619,7 @@ function get_relative_x(evt) {
 function canvas_mousewheel(evt) {
     if (!waterfall_setup_done) return;
 
-    var delta = -evt.deltaY;
-    // deltaMode 0 means pixels instead of lines
-    if ('deltaMode' in evt && evt.deltaMode === 0) {
-        delta /= 50;
-    }
+    var delta = -wheelDelta(evt);
     var relativeX = get_relative_x(evt);
     zoom_step(delta, relativeX, zoom_center_where_calc(evt.pageX));
     evt.preventDefault();
@@ -792,6 +788,9 @@ function on_ws_recv(evt) {
                         if ('tuning_precision' in config)
                             $('#openwebrx-panel-receiver').demodulatorPanel().setTuningPrecision(config['tuning_precision']);
 
+                        if ('aircraft_tracking_service' in config)
+                            $('#openwebrx-panel-adsb-message').adsbMessagePanel().setAircraftTrackingService(config['aircraft_tracking_service']);
+
                         break;
                     case "secondary_config":
                         var s = json['value'];
@@ -860,12 +859,10 @@ function on_ws_recv(evt) {
                         break;
                     case 'secondary_demod':
                         var value = json['value'];
-                        var panels = [
-                            $("#openwebrx-panel-wsjt-message").wsjtMessagePanel(),
-                            $('#openwebrx-panel-packet-message').packetMessagePanel(),
-                            $('#openwebrx-panel-pocsag-message').pocsagMessagePanel(),
-                            $("#openwebrx-panel-js8-message").js8()
-                        ];
+                        var panels = ['wsjt', 'packet', 'pocsag', 'adsb', 'ism', 'hfdl', 'vdl2'].map(function(id) {
+                            return $('#openwebrx-panel-' + id + '-message')[id + 'MessagePanel']();
+                        });
+                        panels.push($('#openwebrx-panel-js8-message').js8());
                         if (!panels.some(function(panel) {
                             if (!panel.supportsMessage(value)) return false;
                             panel.pushMessage(value);
@@ -1258,11 +1255,14 @@ function initSliders() {
         var $slider = $(this);
         if (!$slider.attr('step')) return;
         var val = Number($slider.val());
+        // restore previous high-resolution mouse wheel delta
+        var mouseDelta = Number($slider.data('mouseDelta'));
+        if (mouseDelta) val += mouseDelta;
         var step = Number($slider.attr('step'));
-        if (ev.originalEvent.deltaY > 0) {
-            step *= -1;
-        }
-        $slider.val(val + step);
+        var newVal = val + step * -wheelDelta(ev.originalEvent);
+        $slider.val(newVal);
+        // the calculated value can have a higher resolution than the element can store, so we put the delta into the data attributes
+        $slider.data('mouseDelta', newVal - $slider.val());
         $slider.trigger('change');
     });
 
@@ -1463,9 +1463,9 @@ function secondary_demod_init() {
         .mousedown(secondary_demod_canvas_container_mousedown)
         .mouseenter(secondary_demod_canvas_container_mousein)
         .mouseleave(secondary_demod_canvas_container_mouseleave);
-    $('#openwebrx-panel-wsjt-message').wsjtMessagePanel();
-    $('#openwebrx-panel-packet-message').packetMessagePanel();
-    $('#openwebrx-panel-pocsag-message').pocsagMessagePanel();
+    ['wsjt', 'packet', 'pocsag', 'adsb', 'ism', 'hfdl'].forEach(function(id){
+        $('#openwebrx-panel-' + id + '-message')[id + 'MessagePanel']();
+    })
     $('#openwebrx-panel-js8-message').js8();
 }
 

@@ -1,9 +1,17 @@
 **unreleased**
 - SDR device log messages are now available in the web configuration to simplify troubleshooting
 - Added support for the MSK144 digimode
+- Added support for decoding ADS-B with dump1090
+- Added support for decoding HFDL and VDL2 aircraft communications
+- Added decoding of ISM band transmissions using rtl_433
 - Added IPv6 support
 - Added profile re-ordering using drag & drop
 - Added the ability to disable profiles
+- New devices supported:
+  - Afedri SDR-Net
+
+**1.2.2**
+- Fixed an over-the-air code injection vulnerability
 
 **1.2.1**
 - FifiSDR support fixed (pipeline formats now line up correctly)

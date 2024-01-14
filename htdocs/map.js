@@ -7,6 +7,8 @@ $(function(){
     }
     var expectedLocator;
     if (query.has('locator')) expectedLocator = query.get('locator');
+    var expectedIcao;
+    if (query.has('icao')) expectedIcao = query.get('icao');
 
     var protocol = window.location.protocol.match(/https/) ? 'wss' : 'ws';
 
@@ -28,11 +30,10 @@ $(function(){
     var receiverMarker;
     var updateQueue = [];
 
-    // reasonable default; will be overriden by server
-    var retention_time = 2 * 60 * 60 * 1000;
     var strokeOpacity = 0.8;
     var fillOpacity = 0.35;
     var callsign_service;
+    var aircraft_tracking_service;
 
     var colorKeys = {};
     var colorScale = chroma.scale(['red', 'blue', 'green']).mode('hsl');
@@ -114,7 +115,10 @@ $(function(){
 
             switch (update.location.type) {
                 case 'latlon':
-                    var pos = new google.maps.LatLng(update.location.lat, update.location.lon);
+                    var pos = false;
+                    if (update.location.lat && update.location.lon) {
+                        pos = new google.maps.LatLng(update.location.lat, update.location.lon);
+                    }
                     var marker;
                     var markerClass = google.maps.Marker;
                     var aprsOptions = {}
@@ -123,30 +127,49 @@ $(function(){
                         aprsOptions.symbol = update.location.symbol;
                         aprsOptions.course = update.location.course;
                         aprsOptions.speed = update.location.speed;
+                    } else if (update.source.icao || update.source.flight) {
+                        markerClass = PlaneMarker;
+                        aprsOptions = update.location;
                     }
                     if (markers[key]) {
                         marker = markers[key];
+                        if (!pos) {
+                            delete markers[key];
+                            marker.setMap();
+                            return;
+                        }
                     } else {
-                        marker = new markerClass();
-                        marker.addListener('click', function(){
-                            showMarkerInfoWindow(update.source, pos);
-                        });
-                        markers[key] = marker;
+                        if (pos) {
+                            marker = new markerClass();
+                            marker.addListener('click', function () {
+                                showMarkerInfoWindow(update.source, pos);
+                            });
+                            marker.setMap(map);
+                            markers[key] = marker;
+                        }
                     }
+                    if (!marker) return;
                     marker.setOptions($.extend({
                         position: pos,
-                        map: map,
                         title: sourceToString(update.source)
-                    }, aprsOptions, getMarkerOpacityOptions(update.lastseen) ));
+                    }, aprsOptions, getMarkerOpacityOptions(update.lastseen, update.location.ttl) ));
+                    marker.source = update.source;
                     marker.lastseen = update.lastseen;
                     marker.mode = update.mode;
                     marker.band = update.band;
                     marker.comment = update.location.comment;
+                    marker.ttl = update.location.ttl;
 
                     if (expectedCallsign && shallowEquals(expectedCallsign, update.source))  {
                         map.panTo(pos);
                         showMarkerInfoWindow(update.source, pos);
                         expectedCallsign = false;
+                    }
+
+                    if (expectedIcao && expectedIcao === update.source.icao) {
+                        map.panTo(pos);
+                        showMarkerInfoWindow(update.source, pos);
+                        expectedIcao = false;
                     }
 
                     if (infowindow && infowindow.source && shallowEquals(infowindow.source, update.source)) {
@@ -176,6 +199,7 @@ $(function(){
                     rectangle.mode = update.mode;
                     rectangle.band = update.band;
                     rectangle.center = center;
+                    rectangle.ttl = update.location.ttl;
 
                     rectangle.setOptions($.extend({
                         strokeColor: color,
@@ -188,7 +212,7 @@ $(function(){
                             west: lon,
                             east: lon + 2
                         }
-                    }, getRectangleOpacityOptions(update.lastseen) ));
+                    }, getRectangleOpacityOptions(update.lastseen, update.location.ttl) ));
 
                     if (expectedLocator && expectedLocator === update.location.locator) {
                         map.panTo(center);
@@ -252,7 +276,10 @@ $(function(){
                                     nite.init(map);
                                     setInterval(function() { nite.refresh() }, 10000); // every 10s
                                 });
-                                $.getScript('static/lib/AprsMarker.js').done(function(){
+                                $.when(
+                                    $.getScript('static/lib/AprsMarker.js'),
+                                    $.getScript('static/lib/PlaneMarker.js')
+                                ).done(function(){
                                     processUpdates(updateQueue);
                                     updateQueue = [];
                                 });
@@ -286,11 +313,11 @@ $(function(){
                                 title: config['receiver_name']
                             });
                         }
-                        if ('map_position_retention_time' in config) {
-                            retention_time = config.map_position_retention_time * 1000;
-                        }
                         if ('callsign_service' in config) {
                             callsign_service = config['callsign_service'];
+                        }
+                        if ('aircraft_tracking_service' in config) {
+                            aircraft_tracking_service = config['aircraft_tracking_service'];
                         }
                     break;
                     case "update":
@@ -351,6 +378,8 @@ $(function(){
         // not just for display but also in key treatment in order not to overlap with other locations sent by the same callsign
         if ('item' in source) return source['item'];
         if ('object' in source) return source['object'];
+        if ('icao' in source) return source['icao'];
+        if ('flight' in source) return source['flight'];
         var key = source.callsign;
         if ('ssid' in source) key += '-' + source.ssid;
         return key;
@@ -359,7 +388,7 @@ $(function(){
     // we can reuse the same logic for displaying and indexing
     var sourceToString = sourceToKey;
 
-    var linkifySource = function(source) {
+    var linkifyCallsign = function(source) {
         var callsignString = sourceToString(source);
         switch (callsign_service) {
             case "qrzcq":
@@ -373,6 +402,30 @@ $(function(){
                 return callsignString;
         }
     };
+
+    var linkifyAircraft = function(source, identification) {
+        var aircraftString = identification || source.flight || source.icao;
+        var link = false;
+        switch (aircraft_tracking_service) {
+            case 'flightaware':
+                if (source.icao) {
+                    link = 'https://flightaware.com/live/modes/' + source.icao;
+                    if (identification) link += "/ident/" + identification
+                    link += '/redirect';
+                } else if (source.flight) {
+                    link = 'https://flightaware.com/live/flight/' + source.flight;
+                }
+                break;
+            case 'planefinder':
+                if (identification) link = 'https://planefinder.net/flight/' + identification;
+                if (source.flight) link = 'https://planefinder.net/flight/' + source.flight;
+                break;
+        }
+        if (link) {
+            return '<a target="_blank" href="' + link + '">' + aircraftString + '</a>';
+        }
+        return aircraftString;
+    }
 
     var distanceKm = function(p1, p2) {
         // Earth radius in km
@@ -408,7 +461,7 @@ $(function(){
             '<ul>' +
                 inLocator.map(function(i){
                     var timestring = moment(i.lastseen).fromNow();
-                    var message = linkifySource(i.source) + ' (' + timestring + ' using ' + i.mode;
+                    var message = linkifyCallsign(i.source) + ' (' + timestring + ' using ' + i.mode;
                     if (i.band) message += ' on ' + i.band;
                     message += ')';
                     return '<li>' + message + '</li>'
@@ -432,8 +485,29 @@ $(function(){
         if (receiverMarker) {
             distance = " at " + distanceKm(receiverMarker.position, marker.position) + " km";
         }
+        var title;
+        if (marker.source.icao || marker.source.flight) {
+            title = linkifyAircraft(source, marker.identification);
+            if ('altitude' in marker) {
+                commentString += '<div>Altitude: ' + marker.altitude + ' ft</div>';
+            }
+            if ('groundspeed' in marker) {
+                commentString += '<div>Speed: ' + Math.round(marker.groundspeed) + ' kt</div>';
+            }
+            if ('verticalspeed' in marker) {
+                commentString += '<div>V/S: ' + marker.verticalspeed + ' ft/min</div>';
+            }
+            if ('IAS' in marker) {
+                commentString += '<div>IAS: ' + marker.IAS + ' kt</div>';
+            }
+            if ('TAS' in marker) {
+                commentString += '<div>TAS: ' + marker.TAS + ' kt</div>/';
+            }
+        } else {
+            title = linkifyCallsign(source);
+        }
         infowindow.setContent(
-            '<h3>' + linkifySource(source) + distance + '</h3>' +
+            '<h3>' + title + distance + '</h3>' +
             '<div>' + timestring + ' using ' + marker.mode + ( marker.band ? ' on ' + marker.band : '' ) + '</div>' +
             commentString
         );
@@ -449,25 +523,25 @@ $(function(){
         infowindow.open(map, marker);
     };
 
-    var getScale = function(lastseen) {
+    var getScale = function(lastseen, ttl) {
         var age = new Date().getTime() - lastseen;
         var scale = 1;
-        if (age >= retention_time / 2) {
-            scale = (retention_time - age) / (retention_time / 2);
+        if (age >= ttl / 2) {
+            scale = (ttl - age) / (ttl / 2);
         }
         return Math.max(0, Math.min(1, scale));
     };
 
-    var getRectangleOpacityOptions = function(lastseen) {
-        var scale = getScale(lastseen);
+    var getRectangleOpacityOptions = function(lastseen, ttl) {
+        var scale = getScale(lastseen, ttl);
         return {
             strokeOpacity: strokeOpacity * scale,
             fillOpacity: fillOpacity * scale
         };
     };
 
-    var getMarkerOpacityOptions = function(lastseen) {
-        var scale = getScale(lastseen);
+    var getMarkerOpacityOptions = function(lastseen, ttl) {
+        var scale = getScale(lastseen, ttl);
         return {
             opacity: scale
         };
@@ -478,21 +552,21 @@ $(function(){
         var now = new Date().getTime();
         Object.values(rectangles).forEach(function(m){
             var age = now - m.lastseen;
-            if (age > retention_time) {
+            if (age > m.ttl) {
                 delete rectangles[sourceToKey(m.source)];
                 m.setMap();
                 return;
             }
-            m.setOptions(getRectangleOpacityOptions(m.lastseen));
+            m.setOptions(getRectangleOpacityOptions(m.lastseen, m.ttl));
         });
         Object.values(markers).forEach(function(m) {
             var age = now - m.lastseen;
-            if (age > retention_time) {
+            if (age > m.ttl) {
                 delete markers[sourceToKey(m.source)];
                 m.setMap();
                 return;
             }
-            m.setOptions(getMarkerOpacityOptions(m.lastseen));
+            m.setOptions(getMarkerOpacityOptions(m.lastseen, m.ttl));
         });
     }, 1000);
 

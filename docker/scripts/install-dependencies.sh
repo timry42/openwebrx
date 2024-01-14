@@ -21,8 +21,8 @@ function cmakebuild() {
 
 cd /tmp
 
-STATIC_PACKAGES="libfftw3-bin python3 python3-setuptools netcat-openbsd libsndfile1 liblapack3 libusb-1.0-0 libqt5core5a libreadline8 libgfortran5 libgomp1 libasound2 libudev1 ca-certificates libpulse0 libfaad2 libopus0 libboost-program-options1.74.0 libboost-log1.74.0 libcurl4"
-BUILD_PACKAGES="wget git libsndfile1-dev libfftw3-dev cmake make gcc g++ liblapack-dev texinfo gfortran libusb-1.0-0-dev qtbase5-dev qtmultimedia5-dev qttools5-dev libqt5serialport5-dev qttools5-dev-tools asciidoctor asciidoc libasound2-dev libudev-dev libhamlib-dev patch xsltproc qt5-qmake libfaad-dev libopus-dev libboost-dev libboost-program-options-dev libboost-log-dev libboost-regex-dev libpulse-dev libcurl4-openssl-dev"
+STATIC_PACKAGES="libfftw3-single3 libfftw3-double3 python3 python3-setuptools netcat-openbsd libsndfile1 liblapack3 libusb-1.0-0 libqt5core5a libreadline8 libgfortran5 libgomp1 libasound2 libudev1 ca-certificates libpulse0 libfaad2 libopus0 libboost-program-options1.74.0 libboost-log1.74.0 libcurl4 libncurses6 libliquid1 libconfig++9v5"
+BUILD_PACKAGES="wget git libsndfile1-dev libfftw3-dev cmake make gcc g++ liblapack-dev texinfo gfortran libusb-1.0-0-dev qtbase5-dev qtmultimedia5-dev qttools5-dev libqt5serialport5-dev qttools5-dev-tools asciidoctor asciidoc libasound2-dev libudev-dev libhamlib-dev patch xsltproc qt5-qmake libfaad-dev libopus-dev libboost-dev libboost-program-options-dev libboost-log-dev libboost-regex-dev libpulse-dev libcurl4-openssl-dev libncurses-dev xz-utils libliquid-dev libconfig++-dev"
 apt-get update
 apt-get -y install auto-apt-proxy
 apt-get -y install --no-install-recommends $STATIC_PACKAGES $BUILD_PACKAGES
@@ -35,13 +35,16 @@ case `uname -m` in
         PLATFORM=aarch64
         ;;
     x86_64*)
-        PLATFORM=amd64
+        PLATFORM=x86_64
         ;;
 esac
 
-wget https://github.com/just-containers/s6-overlay/releases/download/v1.21.8.0/s6-overlay-${PLATFORM}.tar.gz
-tar xzf s6-overlay-${PLATFORM}.tar.gz -C /
-rm s6-overlay-${PLATFORM}.tar.gz
+wget https://github.com/just-containers/s6-overlay/releases/download/v3.1.5.0/s6-overlay-noarch.tar.xz
+tar -Jxpf /tmp/s6-overlay-noarch.tar.xz -C /
+rm s6-overlay-noarch.tar.xz
+wget https://github.com/just-containers/s6-overlay/releases/download/v3.1.5.0/s6-overlay-${PLATFORM}.tar.xz
+tar -Jxpf /tmp/s6-overlay-${PLATFORM}.tar.xz -C /
+rm s6-overlay-${PLATFORM}.tar.xz
 
 JS8CALL_VERSION=2.2.0
 JS8CALL_DIR=js8call
@@ -86,8 +89,7 @@ rm -rf /usr/local/share/doc/direwolf/examples/
 
 git clone https://github.com/drowe67/codec2.git
 cd codec2
-# latest commit from master as of 2020-10-04
-git checkout 55d7bb8d1bddf881bdbfcb971a718b83e6344598
+git checkout 1.2.0
 mkdir build
 cd build
 cmake ..
@@ -110,6 +112,26 @@ rm dream-2.1.1-svn808.tar.gz
 
 git clone https://github.com/mobilinkd/m17-cxx-demod.git
 cmakebuild m17-cxx-demod v2.3
+
+git clone --depth 1 -b v9.0 https://github.com/flightaware/dump1090
+cd dump1090
+make
+install -m 0755 dump1090 /usr/local/bin
+cd ..
+rm -rf dump1090
+
+git clone https://github.com/merbanan/rtl_433.git
+# latest from master as of 2023-09-06
+CMAKE_ARGS="-DENABLE_RTLSDR=OFF" cmakebuild rtl_433 70d84d01e1be87b459f7a10825966f3262b7dd34
+
+git clone https://github.com/szpajder/libacars.git
+cmakebuild libacars v2.2.0
+
+git clone https://github.com/szpajder/dumphfdl
+cmakebuild dumphfdl v1.4.1
+
+git clone https://github.com/szpajder/dumpvdl2.git
+cmakebuild dumpvdl2 v2.3.0
 
 git clone https://github.com/hessu/aprs-symbols /usr/share/aprs-symbols
 pushd /usr/share/aprs-symbols
