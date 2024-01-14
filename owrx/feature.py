@@ -70,6 +70,7 @@ class FeatureDetector(object):
         "radioberry": ["soapy_connector", "soapy_radioberry"],
         "fcdpp": ["soapy_connector", "soapy_fcdpp"],
         "bladerf": ["soapy_connector", "soapy_bladerf"],
+        "netsdr": ["soapy_connector", "soapy_netsdr"],
         "sddc": ["sddc_connector"],
         "hpsdr": ["hpsdr_connector"],
         "runds": ["runds_connector"],
@@ -416,6 +417,14 @@ class FeatureDetector(object):
         You can get it [here](https://github.com/pothosware/SoapyBladeRF).
         """
         return self._has_soapy_driver("bladerf")
+
+    def has_soapy_netsdr(self):
+        """
+        The SoapyNetSDR module allows the use of devices using the NetSDR protocol.
+
+        You can get it [here](https://github.com/pothosware/SoapyNetSDR)
+        """
+        return self._has_soapy_driver("netsdr")
 
     def has_m17_demod(self):
         """
