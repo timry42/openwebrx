@@ -39,6 +39,12 @@ class ActiveListIndexDeleted(ActiveListChange):
         self.oldValue = oldValue
 
 
+class ActiveListIndexMoved(ActiveListChange):
+    def __init__(self, old_index: int, new_index: int):
+        self.old_index = old_index
+        self.new_index = new_index
+
+
 class ActiveListListener(ABC):
     @abstractmethod
     def onListChange(self, source: "ActiveList", changes: list[ActiveListChange]):
@@ -105,6 +111,8 @@ class ActiveListTransformationListener(ActiveListListener):
             elif isinstance(change, ActiveListIndexDeleted):
                 del self.target[change.index]
                 self.transformation.unmonitor(change.oldValue)
+            elif isinstance(change, ActiveListIndexMoved):
+                self.target.move(change.old_index, change.new_index)
 
     def _onMonitor(self, value):
         idx = self.source.index(value)
@@ -152,6 +160,9 @@ class ActiveListFilterListener(ActiveListListener):
                     del self.keyMap[idx]
                 for i in range(idx, len(self.keyMap)):
                     self.keyMap[i] -= 1
+            elif isinstance(change, ActiveListIndexMoved):
+                idx = self.keyMap.index(change.old_index)
+                #TODO update keymap, fire change event
 
     def _onMonitor(self, value):
         idx = self.source.index(value)
@@ -199,6 +210,12 @@ class ActiveListFlattenListener(ActiveListListener):
                     change.oldValue.removeListener(self)
                     idx = self.getOffsetForIndex(change.index)
                     del self.target[idx, idx + len(change.oldValue)]
+                elif isinstance(change, ActiveListIndexMoved):
+                    old_index = self.getOffsetForIndex(change.old_index)
+                    new_index = self.getOffsetForIndex(change.new_index)
+                    moved_list = self.source[change.new_index]
+                    for (idx, element) in enumerate(moved_list):
+                        self.target.move(old_index + idx, new_index + idx)
             else:
                 if isinstance(change, ActiveListIndexAdded):
                     self.target.insert(self.getOffsetFor(source) + change.index, change.newValue)
@@ -206,6 +223,9 @@ class ActiveListFlattenListener(ActiveListListener):
                     self.target[self.getOffsetFor(source) + change.index] = change.newValue
                 elif isinstance(change, ActiveListIndexDeleted):
                     del self.target[self.getOffsetFor(source) + change.index]
+                elif isinstance(change, ActiveListIndexMoved):
+                    offset = self.getOffsetFor(source)
+                    self.target.move(offset + change.old_index, offset + change.new_index)
 
 
 class ActiveList:
@@ -240,6 +260,10 @@ class ActiveList:
     def insert(self, index, value):
         self.delegate.insert(index, value)
         self.__fireChanges([ActiveListIndexInserted(index, value)])
+
+    def move(self, old_index, new_index):
+        self.delegate.insert(new_index, self.delegate.pop(old_index))
+        self.__fireChanges([ActiveListIndexMoved(old_index, new_index)])
 
     def index(self, value):
         return self.delegate.index(value)

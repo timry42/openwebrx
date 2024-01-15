@@ -1,4 +1,4 @@
-from owrx.active.list import ActiveList, ActiveListIndexUpdated, ActiveListIndexAppended, ActiveListIndexDeleted, ActiveListIndexInserted
+from owrx.active.list import ActiveList, ActiveListIndexUpdated, ActiveListIndexAppended, ActiveListIndexDeleted, ActiveListIndexInserted, ActiveListIndexMoved
 from unittest import TestCase
 from unittest.mock import Mock
 
@@ -333,3 +333,106 @@ class ActiveListTest(TestCase):
         self.assertEqual(len(filteredList), 2)
         # update should propagate
         self.assertEqual(filteredList[0], 42)
+
+    def testListMove(self):
+        list = ActiveList([1, 2, 3, 4, 5])
+        list.move(1, 4)
+        self.assertEqual(len(list), 5)
+        self.assertEqual(list[1], 3)
+        self.assertEqual(list[4], 2)
+
+        list = ActiveList([1, 2, 3, 4, 5])
+        list.move(4, 1)
+        self.assertEqual(len(list), 5)
+        self.assertEqual(list[4], 4)
+        self.assertEqual(list[1], 5)
+
+    def testListMoveNotification(self):
+        list = ActiveList([1, 2, 3, 4, 5])
+        listenerMock = Mock()
+        list.addListener(listenerMock)
+        list.move(1, 4)
+        listenerMock.onListChange.assert_called_once()
+        source, changes = listenerMock.onListChange.call_args.args
+        self.assertIs(source, list)
+        self.assertEqual(len(changes), 1)
+        self.assertIsInstance(changes[0], ActiveListIndexMoved)
+        self.assertEqual(changes[0].old_index, 1)
+        self.assertEqual(changes[0].new_index, 4)
+
+    def testActiveTransformationMove(self):
+        list = ActiveList([1, 2, 3, 4, 5])
+        transformedList = list.map(lambda x: x + 10)
+        list.move(1, 4)
+        self.assertEqual(len(transformedList), 5)
+        self.assertEqual(transformedList[1], 13)
+        self.assertEqual(transformedList[4], 12)
+
+    def testActiveTransformationMoveNotification(self):
+        list = ActiveList([1, 2, 3, 4, 5])
+        transformedList = list.map(lambda x: x + 10)
+        listenerMock = Mock()
+        transformedList.addListener(listenerMock)
+        list.move(1, 4)
+        listenerMock.onListChange.assert_called_once()
+        source, changes = listenerMock.onListChange.call_args.args
+        self.assertIs(source, transformedList)
+        self.assertEqual(len(changes), 1)
+        self.assertIsInstance(changes[0], ActiveListIndexMoved)
+        self.assertEqual(changes[0].old_index, 1)
+        self.assertEqual(changes[0].new_index, 4)
+
+    #def testActiveFilterMove(self):
+    #    list = ActiveList([1, 2, 3, 4, 5])
+    #    filteredList = list.filter(lambda x: x != 3)
+    #    list.move(1, 4)
+    #    self.assertEqual(len(filteredList), 4)
+    #    self.assertEqual(filteredList[1], 4)
+    #    self.assertEqual(filteredList[3], 2)
+
+    def testActiveListFlattenMove(self):
+        firstMember = ActiveList([1, 2, 3, 4, 5])
+        list = ActiveList([firstMember, ActiveList([6, 7, 8, 9, 10])])
+        flattenedList = list.flatten()
+        firstMember.move(1, 4)
+        self.assertEqual(len(flattenedList), 10)
+        self.assertEqual(flattenedList[1], 3)
+        self.assertEqual(flattenedList[4], 2)
+
+    def testActiveListFlattenMoveNotification(self):
+        firstMember = ActiveList([1, 2, 3, 4, 5])
+        secondMember = ActiveList([6, 7, 8, 9, 10])
+        list = ActiveList([firstMember, secondMember])
+        flattenedList = list.flatten()
+        listenerMock = Mock()
+        flattenedList.addListener(listenerMock)
+        secondMember.move(1, 4)
+        listenerMock.onListChange.assert_called_once()
+        source, changes = listenerMock.onListChange.call_args.args
+        self.assertIs(source, flattenedList)
+        self.assertEqual(len(changes), 1)
+        self.assertIsInstance(changes[0], ActiveListIndexMoved)
+        self.assertEqual(changes[0].old_index, 6)
+        self.assertEqual(changes[0].new_index, 9)
+
+    def testActiveListFlattenListMove(self):
+        list = ActiveList([ActiveList([1]), ActiveList([2]), ActiveList([3]), ActiveList([4]), ActiveList([5])])
+        flattenedList = list.flatten()
+        list.move(1, 4)
+        self.assertEqual(len(flattenedList), 5)
+        self.assertEqual(flattenedList[1], 3)
+        self.assertEqual(flattenedList[4], 2)
+
+    def testActiveListFlattenListMoveNotification(self):
+        list = ActiveList([ActiveList([1, 2, 3, 4, 5]), ActiveList([6, 7, 8, 9, 10])])
+        flattenedList = list.flatten()
+        listenerMock = Mock()
+        flattenedList.addListener(listenerMock)
+        list.move(0, 1)
+        self.assertEqual(listenerMock.onListChange.call_count, 5)
+        for i in range(0, 5):
+            source, changes = listenerMock.onListChange.call_args_list[i].args
+            self.assertIs(source, flattenedList)
+            self.assertEqual(len(changes), 1)
+            self.assertEqual(changes[0].old_index, i)
+            self.assertEqual(changes[0].new_index, i + 5)
