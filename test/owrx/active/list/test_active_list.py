@@ -382,13 +382,28 @@ class ActiveListTest(TestCase):
         self.assertEqual(changes[0].old_index, 1)
         self.assertEqual(changes[0].new_index, 4)
 
-    #def testActiveFilterMove(self):
-    #    list = ActiveList([1, 2, 3, 4, 5])
-    #    filteredList = list.filter(lambda x: x != 3)
-    #    list.move(1, 4)
-    #    self.assertEqual(len(filteredList), 4)
-    #    self.assertEqual(filteredList[1], 4)
-    #    self.assertEqual(filteredList[3], 2)
+    def testActiveFilterMove(self):
+        list = ActiveList([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+        filteredList = list.filter(lambda x: x != 3)
+        list.move(1, 4)
+        self.assertEqual(len(filteredList), 9)
+        self.assertEqual(filteredList[1], 4)
+        self.assertEqual(filteredList[3], 2)
+
+    def testActiveFilterMoveReverse(self):
+        list = ActiveList([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+        filteredList = list.filter(lambda x: x != 3)
+        list.move(4, 1)
+        self.assertEqual(len(filteredList), 9)
+        self.assertEqual(filteredList[1], 5)
+        self.assertEqual(filteredList[3], 4)
+
+    def testActiveFilterMoveFilteredItem(self):
+        list = ActiveList([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+        filteredList = list.filter(lambda x: x != 3)
+        list.move(2, 4)
+        self.assertEqual(len(filteredList), 9)
+        self.assertEqual(filteredList[2], 4)
 
     def testActiveListFlattenMove(self):
         firstMember = ActiveList([1, 2, 3, 4, 5])

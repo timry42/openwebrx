@@ -161,8 +161,18 @@ class ActiveListFilterListener(ActiveListListener):
                 for i in range(idx, len(self.keyMap)):
                     self.keyMap[i] -= 1
             elif isinstance(change, ActiveListIndexMoved):
-                idx = self.keyMap.index(change.old_index)
-                #TODO update keymap, fire change event
+                start_idx = len([x for x in self.keyMap if x < change.old_index])
+                end_idx = len([x for x in self.keyMap if x < change.new_index])
+                offset = 0
+                if change.old_index in self.keyMap:
+                    self.target.move(start_idx, end_idx)
+                    offset = 1
+                if end_idx > start_idx:
+                    for i in reversed(range(start_idx, end_idx + 1)):
+                        self.keyMap[i] = self.keyMap[i + offset] - 1
+                else:
+                    for i in range(end_idx + 1, start_idx):
+                        self.keyMap[i] = self.keyMap[i - offset] + 1
 
     def _onMonitor(self, value):
         idx = self.source.index(value)
