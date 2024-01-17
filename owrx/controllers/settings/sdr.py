@@ -124,8 +124,8 @@ class SdrDeviceListController(AuthorizationMixin, BreadcrumbMixin, WebpageContro
             config = Config.get()
             devices = config["sdrs"]
             device = next(d for d in devices if d["id"] == device_id)
-            devices.remove(device)
-            devices.insert(index, device)
+            old_index = devices.index(device)
+            devices.move(old_index, index)
             config.store()
             self.send_response("{}", content_type="application/json", code=203)
         except json.JSONDecodeError:
@@ -303,8 +303,8 @@ class SdrDeviceController(SdrFormControllerWithModal):
             index = data["index"]
             profiles = self.device["profiles"]
             profile = next(p for p in profiles if p["id"] == profile_id)
-            profiles.remove(profile)
-            profiles.insert(index, profile)
+            old_index = profiles.index(profile)
+            profiles.move(old_index, index)
             self.store()
             self.send_response("{}", content_type="application/json", code=203)
         except json.JSONDecodeError:
