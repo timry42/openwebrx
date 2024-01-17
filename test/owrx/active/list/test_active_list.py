@@ -389,6 +389,7 @@ class ActiveListTest(TestCase):
         self.assertEqual(len(filteredList), 9)
         self.assertEqual(filteredList[1], 4)
         self.assertEqual(filteredList[3], 2)
+        self.assertEqual(list.listeners[0].keyMap, [0, 2, 3, 4, 5, 6, 7, 8, 9])
 
     def testActiveFilterMoveReverse(self):
         list = ActiveList([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
@@ -397,6 +398,7 @@ class ActiveListTest(TestCase):
         self.assertEqual(len(filteredList), 9)
         self.assertEqual(filteredList[1], 5)
         self.assertEqual(filteredList[3], 4)
+        self.assertEqual(list.listeners[0].keyMap, [0, 1, 2, 4, 5, 6, 7, 8, 9])
 
     def testActiveFilterMoveFilteredItem(self):
         list = ActiveList([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
@@ -404,6 +406,21 @@ class ActiveListTest(TestCase):
         list.move(2, 4)
         self.assertEqual(len(filteredList), 9)
         self.assertEqual(filteredList[2], 4)
+        self.assertEqual(list.listeners[0].keyMap, [0, 1, 2, 3, 5, 6, 7, 8, 9])
+
+    def testActiveFilterMoveNotification(self):
+        list = ActiveList([1, 2, 3, 4, 5])
+        filteredList = list.filter(lambda x: x != 3)
+        listenerMock = Mock()
+        filteredList.addListener(listenerMock)
+        list.move(1, 4)
+        listenerMock.onListChange.assert_called_once()
+        source, changes = listenerMock.onListChange.call_args.args
+        self.assertIs(source, filteredList)
+        self.assertEqual(len(changes), 1)
+        self.assertIsInstance(changes[0], ActiveListIndexMoved)
+        self.assertEqual(changes[0].old_index, 1)
+        self.assertEqual(changes[0].new_index, 3)
 
     def testActiveListFlattenMove(self):
         firstMember = ActiveList([1, 2, 3, 4, 5])
@@ -431,12 +448,32 @@ class ActiveListTest(TestCase):
         self.assertEqual(changes[0].new_index, 9)
 
     def testActiveListFlattenListMove(self):
-        list = ActiveList([ActiveList([1]), ActiveList([2]), ActiveList([3]), ActiveList([4]), ActiveList([5])])
-        flattenedList = list.flatten()
-        list.move(1, 4)
-        self.assertEqual(len(flattenedList), 5)
-        self.assertEqual(flattenedList[1], 3)
-        self.assertEqual(flattenedList[4], 2)
+        listoflists = ActiveList([
+            ActiveList(list(range(1, 11))),
+            ActiveList(list(range(11, 21))),
+            ActiveList(list(range(21, 31))),
+            ActiveList(list(range(31, 41))),
+            ActiveList(list(range(41, 51))),
+        ])
+        flattenedList = listoflists.flatten()
+        listoflists.move(1, 4)
+        self.assertEqual(len(flattenedList), 50)
+        self.assertEqual(flattenedList[11], 22)
+        self.assertEqual(flattenedList[41], 12)
+
+    def testActiveListFlattenListMoveReverse(self):
+        listoflists = ActiveList([
+            ActiveList(list(range(1, 11))),
+            ActiveList(list(range(11, 21))),
+            ActiveList(list(range(21, 31))),
+            ActiveList(list(range(31, 41))),
+            ActiveList(list(range(41, 51))),
+        ])
+        flattenedList = listoflists.flatten()
+        listoflists.move(4, 1)
+        self.assertEqual(len(flattenedList), 50)
+        self.assertEqual(flattenedList[11], 42)
+        self.assertEqual(flattenedList[21], 12)
 
     def testActiveListFlattenListMoveNotification(self):
         list = ActiveList([ActiveList([1, 2, 3, 4, 5]), ActiveList([6, 7, 8, 9, 10])])
@@ -449,5 +486,6 @@ class ActiveListTest(TestCase):
             source, changes = listenerMock.onListChange.call_args_list[i].args
             self.assertIs(source, flattenedList)
             self.assertEqual(len(changes), 1)
-            self.assertEqual(changes[0].old_index, i)
-            self.assertEqual(changes[0].new_index, i + 5)
+            # yes, this is a bit weird, but we don't have bulk move transactions.
+            self.assertEqual(changes[0].old_index, 0)
+            self.assertEqual(changes[0].new_index, 10)

@@ -165,14 +165,17 @@ class ActiveListFilterListener(ActiveListListener):
                 end_idx = len([x for x in self.keyMap if x < change.new_index])
                 offset = 0
                 if change.old_index in self.keyMap:
-                    self.target.move(start_idx, end_idx)
                     offset = 1
+                else:
+                    end_idx += 1
                 if end_idx > start_idx:
-                    for i in reversed(range(start_idx, end_idx + 1)):
+                    for i in reversed(range(start_idx, end_idx)):
                         self.keyMap[i] = self.keyMap[i + offset] - 1
                 else:
-                    for i in range(end_idx + 1, start_idx):
+                    for i in reversed(range(end_idx, start_idx)):
                         self.keyMap[i] = self.keyMap[i - offset] + 1
+                if offset:
+                    self.target.move(start_idx, end_idx)
 
     def _onMonitor(self, value):
         idx = self.source.index(value)
@@ -221,11 +224,15 @@ class ActiveListFlattenListener(ActiveListListener):
                     idx = self.getOffsetForIndex(change.index)
                     del self.target[idx, idx + len(change.oldValue)]
                 elif isinstance(change, ActiveListIndexMoved):
-                    old_index = self.getOffsetForIndex(change.old_index)
-                    new_index = self.getOffsetForIndex(change.new_index)
                     moved_list = self.source[change.new_index]
-                    for (idx, element) in enumerate(moved_list):
-                        self.target.move(old_index + idx, new_index + idx)
+                    if change.new_index > change.old_index:
+                        old_index = self.getOffsetForIndex(change.old_index)
+                        new_index = self.getOffsetForIndex(change.new_index + 1)
+                    else:
+                        old_index = self.getOffsetForIndex(change.old_index + 1) - 1
+                        new_index = self.getOffsetForIndex(change.new_index)
+                    for _ in moved_list:
+                        self.target.move(old_index, new_index)
             else:
                 if isinstance(change, ActiveListIndexAdded):
                     self.target.insert(self.getOffsetFor(source) + change.index, change.newValue)
