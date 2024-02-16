@@ -1,5 +1,5 @@
 from owrx.sstv import SstvParser
-from csdr.chain.demodulator import SecondaryDemodulator, FixedAudioRateChain
+from csdr.chain.demodulator import ServiceDemodulator
 from pycsdr.modules import FmDemod, Buffer
 from pycsdr.types import Format
 from csdrsstv.modules import SstvDecoder
@@ -7,7 +7,7 @@ from owrx.feature import FeatureDetector
 from typing import Optional
 
 
-class Sstv(SecondaryDemodulator, FixedAudioRateChain):
+class Sstv(ServiceDemodulator):
     def __init__(self):
         self.imageBuffer = Buffer(Format.CHAR)
         super().__init__([

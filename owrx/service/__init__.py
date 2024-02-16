@@ -327,6 +327,9 @@ class ServiceHandler(SdrSourceEventClient):
         elif mod == "ism":
             from csdr.chain.rtl433 import Rtl433
             return Rtl433()
+        elif mod == "sstv":
+            from csdr.chain.sstv import Sstv
+            return Sstv()
 
         raise ValueError("unsupported service modulation: {}".format(mod))
 
