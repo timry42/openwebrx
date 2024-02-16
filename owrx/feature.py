@@ -93,6 +93,7 @@ class FeatureDetector(object):
         "dab": ["csdreti", "dablin"],
         "mqtt": ["paho_mqtt"],
         "sstv": ["csdrsstv"],
+        "png": ["pypng"],
     }
 
     def feature_availability(self):
@@ -704,5 +705,15 @@ class FeatureDetector(object):
                     LooseVersion(csdrsstv_version) >= required_version
                     and LooseVersion(pycsdrsstv_version) >= required_version
             )
+        except ImportError:
+            return False
+
+    def has_pypng(self):
+        """
+        TODO
+        """
+        try:
+            import png
+            return True
         except ImportError:
             return False
