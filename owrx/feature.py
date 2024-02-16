@@ -693,7 +693,11 @@ class FeatureDetector(object):
 
     def has_csdrsstv(self):
         """
-        TODO
+        To decode SSTV (slow-scan television) signals, OpenWebRX needs the decoders from the
+        [`csdr-sstv`](https://github.com/jketterl/csdr-sstv) project, together with the python bindings from
+        [`pycsdr-sstv`](https://github.com/jketterl/pycsdr-sstv).
+
+        If you are using the OpenWebRX Debian or Ubuntu repository, please install the `python3-csdr-sstv` package.
         """
         required_version = LooseVersion("0.1")
 
@@ -710,7 +714,11 @@ class FeatureDetector(object):
 
     def has_pypng(self):
         """
-        TODO
+        To be able to transform decoded images into the PNG format, the [`pypng`](https://gitlab.com/drj11/pypng/)
+        library can be installed. This will allow decoded SSTV images to be passed over MQTT.
+
+        The library is available as a package from the Debian and Ubuntu repositories. Please install the `python3-png`
+        package.
         """
         try:
             import png
