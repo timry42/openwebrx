@@ -1440,3 +1440,16 @@ img.openwebrx-mirror-img
 .under-construction:hover .under-construction-description {
 	max-height: 500px;
 }
+
+.openwebrx-message-panel#openwebrx-panel-sstv-message {
+	min-height: initial;
+}
+
+.sstv-canvas-container {
+	width: 320px;
+	height: 256px;
+}
+
+.sstv-canvas-container canvas {
+	width: 100%;
+}

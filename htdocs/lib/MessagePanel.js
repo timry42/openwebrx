@@ -810,3 +810,64 @@ $.fn.vdl2MessagePanel = function() {
     }
     return this.data('panel');
 };
+
+SstvMessagePanel = function(el) {
+    MessagePanel.call(this, el);
+    this.currentLine = 0;
+}
+
+SstvMessagePanel.prototype = Object.create(MessagePanel.prototype);
+
+SstvMessagePanel.prototype.render = function() {
+    $(this.el).append($(
+        '<div class="sstv-container">' +
+            '<div class="sstv-canvas-container">' +
+                '<canvas class="sstv-canvas" width="320" height="256"></canvas>' +
+            '</div>' +
+        '</div>'
+    ));
+    this.canvas = $(this.el).find('canvas').get(0)
+    this.context = this.canvas.getContext('2d');
+};
+
+SstvMessagePanel.prototype.supportsMessage = function(message) {
+    return message['mode'] === 'SSTV';
+};
+
+SstvMessagePanel.prototype.pushMessage = function(message) {
+    if ('vis' in message) {
+        console.info("got vis: " + message.vis);
+    }
+    if ('resolution' in message) {
+        console.info("got resolution: ", message.resolution);
+        this.pixels = message.resolution.width;
+        this.lines = message.resolution.height;
+        this.canvas.width = this.pixels;
+        this.canvas.height = this.lines;
+        this.currentLine = 0;
+    }
+    if ('line' in message) {
+        var line = this.context.createImageData(this.pixels, 1);
+        for (var i = 0; i < this.pixels; i++) {
+            line.data[i * 4] = message.line[i * 3];
+            line.data[i * 4 + 1] = message.line[i * 3 + 1];
+            line.data[i * 4 + 2] = message.line[i * 3 + 2];
+            // alpha
+            line.data[i * 4 + 3] = 255;
+        }
+        this.context.putImageData(line, 0, this.currentLine);
+        this.currentLine = (this.currentLine + 1) % this.lines;
+    }
+};
+
+SstvMessagePanel.prototype.clearMessages = function() {
+    this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    this.currentLine = 0;
+};
+
+$.fn.sstvMessagePanel = function() {
+    if (!this.data('panel')) {
+        this.data('panel', new SstvMessagePanel(this));
+    }
+    return this.data('panel');
+};

@@ -92,6 +92,7 @@ class FeatureDetector(object):
         "redsea": ["redsea"],
         "dab": ["csdreti", "dablin"],
         "mqtt": ["paho_mqtt"],
+        "sstv": ["csdrsstv"],
     }
 
     def feature_availability(self):
@@ -686,5 +687,22 @@ class FeatureDetector(object):
         try:
             from paho.mqtt import __version__
             return True
+        except ImportError:
+            return False
+
+    def has_csdrsstv(self):
+        """
+        TODO
+        """
+        required_version = LooseVersion("0.1")
+
+        try:
+            from csdrsstv.modules import csdrsstv_version
+            from csdrsstv.modules import version as pycsdrsstv_version
+
+            return (
+                    LooseVersion(csdrsstv_version) >= required_version
+                    and LooseVersion(pycsdrsstv_version) >= required_version
+            )
         except ImportError:
             return False

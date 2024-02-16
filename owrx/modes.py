@@ -140,6 +140,7 @@ class Modes(object):
         DigitalMode("rtty170", "RTTY 45/170", underlying=["usb", "lsb"]),
         DigitalMode("rtty450", "RTTY 50N/450", underlying=["lsb", "usb"]),
         DigitalMode("rtty85", "RTTY 50N/85", underlying=["lsb", "usb"]),
+        DigitalMode("sstv", "SSTV", underlying=["usb", "lsb"], bandpass=Bandpass(1100, 2400)),
         WsjtMode("ft8", "FT8"),
         WsjtMode("ft4", "FT4"),
         WsjtMode("jt65", "JT65"),
