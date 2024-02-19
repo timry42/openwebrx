@@ -18,7 +18,7 @@ function DemodulatorPanel(el) {
     el.on('click', '.openwebrx-demodulator-button', function() {
         var modulation = $(this).data('modulation');
         if (modulation) {
-            if (self.mode && self.mode.type === 'digimode' && self.mode.underlying.indexOf(modulation) >= 0) {
+            if (self.mode && self.mode.type === 'digimode' && modulation in self.mode.configs) {
                 // keep the mode, just switch underlying modulation
                 self.setMode(self.mode.modulation, modulation)
             } else {
@@ -101,7 +101,7 @@ DemodulatorPanel.prototype.setMode = function(requestedModulation, underlyingMod
 
     var modulation;
     if (mode.type === 'digimode') {
-        modulation = underlyingModulation = underlyingModulation || mode.underlying[0];
+        modulation = underlyingModulation = underlyingModulation || Object.keys(mode.configs)[0];
     } else {
         underlyingModulation = undefined;
         modulation = mode.modulation;
@@ -136,7 +136,8 @@ DemodulatorPanel.prototype.setMode = function(requestedModulation, underlyingMod
     if (mode.type === 'digimode') {
         this.demodulator.set_secondary_demod(mode.modulation);
         var uMode = Modes.findByModulation(underlyingModulation);
-        var bandpass = mode.bandpass || (uMode && uMode.bandpass);
+        var config = mode.configs[underlyingModulation] || {};
+        var bandpass = config.bandpass || mode.bandpass || (uMode && uMode.bandpass);
         if (bandpass) {
             this.demodulator.setBandpass(bandpass);
         } else {
@@ -262,7 +263,7 @@ DemodulatorPanel.prototype.updateButtons = function() {
         var mode = Modes.findByModulation(secondary_demod);
         if (mode) {
             var self = this;
-            mode.underlying.filter(function(m) {
+            Object.keys(mode.configs).filter(function(m) {
                 return m !== demod.get_modulation();
             }).forEach(function(m) {
                 self.el.find('[data-modulation=' + m + ']').addClass('same-mod')

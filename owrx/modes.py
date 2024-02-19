@@ -2,6 +2,7 @@ from owrx.feature import FeatureDetector
 from owrx.audio import ProfileSource
 from functools import reduce
 from abc import ABCMeta, abstractmethod
+from typing import Dict, List
 
 
 class Bandpass(object):
@@ -41,25 +42,35 @@ class AnalogMode(Mode):
     pass
 
 
+class DigitalUnderlyingConfig(object):
+    def __init__(self, bandpass: Bandpass = None):
+        self.bandpass = bandpass
+
+
 class DigitalMode(Mode):
     def __init__(
         self,
         modulation,
         name,
-        underlying,
         bandpass: Bandpass = None,
-        ifRate = None,
+        ifRate=None,
         requirements=None,
         service=False,
         squelch=True,
-        secondaryFft=True
+        secondaryFft=True,
+        configs: List[str] | Dict[str, DigitalUnderlyingConfig] = None,
     ):
         super().__init__(modulation, name, bandpass, ifRate, requirements, service, squelch)
-        self.underlying = underlying
         self.secondaryFft = secondaryFft
+        if configs is None:
+            self.configs = {}
+        elif isinstance(configs, list):
+            self.configs = {x: DigitalUnderlyingConfig() for x in configs}
+        else:
+            self.configs = configs
 
     def get_underlying_mode(self):
-        mode = Modes.findByModulation(self.underlying[0])
+        mode = Modes.findByModulation(list(self.configs.keys())[0])
         if mode is None:
             mode = EmptyMode
         return mode
@@ -73,10 +84,20 @@ class DigitalMode(Mode):
         return self.get_underlying_mode().get_modulation()
 
     def for_underlying(self, underlying: str):
-        if underlying not in self.underlying:
+        if underlying not in self.configs:
             raise ValueError("{} is not a valid underlying mode for {}".format(underlying, self.modulation))
+        config = self.configs[underlying]
+        bandpass = self.bandpass if config.bandpass is None else config.bandpass
         return DigitalMode(
-            self.modulation, self.name, [underlying], self.bandpass, self.requirements, self.service, self.squelch
+            self.modulation,
+            self.name,
+            bandpass,
+            self.ifRate,
+            self.requirements,
+            self.service,
+            self.squelch,
+            self.secondaryFft,
+            {underlying: self.configs[underlying]}
         )
 
 
@@ -84,7 +105,7 @@ class AudioChopperMode(DigitalMode, metaclass=ABCMeta):
     def __init__(self, modulation, name, bandpass=None, requirements=None):
         if bandpass is None:
             bandpass = Bandpass(0, 3000)
-        super().__init__(modulation, name, ["usb"], bandpass=bandpass, requirements=requirements, service=True)
+        super().__init__(modulation, name, bandpass=bandpass, requirements=requirements, service=True, configs=["usb"])
 
     @abstractmethod
     def get_profile_source(self) -> ProfileSource:
@@ -135,15 +156,18 @@ class Modes(object):
         ),
         AnalogMode("drm", "DRM", bandpass=Bandpass(-5000, 5000), requirements=["drm"], squelch=False),
         AnalogMode("dab", "DAB", bandpass=None, ifRate=2.048e6, requirements=["dab"], squelch=False),
-        DigitalMode("bpsk31", "BPSK31", underlying=["usb"]),
-        DigitalMode("bpsk63", "BPSK63", underlying=["usb"]),
-        DigitalMode("rtty170", "RTTY 45/170", underlying=["usb", "lsb"]),
-        DigitalMode("rtty450", "RTTY 50N/450", underlying=["lsb", "usb"]),
-        DigitalMode("rtty85", "RTTY 50N/85", underlying=["lsb", "usb"]),
+        DigitalMode("bpsk31", "BPSK31", configs=["usb"]),
+        DigitalMode("bpsk63", "BPSK63", configs=["usb"]),
+        DigitalMode("rtty170", "RTTY 45/170", configs=["usb", "lsb"]),
+        DigitalMode("rtty450", "RTTY 50N/450", configs=["lsb", "usb"]),
+        DigitalMode("rtty85", "RTTY 50N/85", configs=["lsb", "usb"]),
         DigitalMode(
             "sstv",
             "SSTV",
-            underlying=["usb", "lsb"],
+            configs={
+                "usb": DigitalUnderlyingConfig(bandpass=Bandpass(1100, 2400)),
+                "lsb": DigitalUnderlyingConfig(bandpass=Bandpass(-2400, -1100)),
+            },
             bandpass=Bandpass(1100, 2400),
             requirements=["sstv"],
             service=True
@@ -156,12 +180,12 @@ class Modes(object):
         WsjtMode("fst4", "FST4", requirements=["wsjt-x-2-3"]),
         WsjtMode("fst4w", "FST4W", bandpass=Bandpass(1350, 1650), requirements=["wsjt-x-2-3"]),
         WsjtMode("q65", "Q65", requirements=["wsjt-x-2-4"]),
-        DigitalMode("msk144", "MSK144", requirements=["msk144"], underlying=["usb"], service=True),
+        DigitalMode("msk144", "MSK144", requirements=["msk144"], configs=["usb"], service=True),
         Js8Mode("js8", "JS8Call"),
         DigitalMode(
             "packet",
             "Packet",
-            underlying=["nfm", "usb", "lsb"],
+            configs=["nfm", "usb", "lsb"],
             bandpass=Bandpass(-6250, 6250),
             requirements=["packet"],
             service=True,
@@ -170,7 +194,7 @@ class Modes(object):
         DigitalMode(
             "pocsag",
             "Pocsag",
-            underlying=["nfm"],
+            configs=["nfm"],
             bandpass=Bandpass(-6250, 6250),
             requirements=["pocsag"],
             service=True,
@@ -179,7 +203,7 @@ class Modes(object):
         DigitalMode(
             "adsb",
             "ADS-B",
-            underlying=["empty"],
+            configs=["empty"],
             bandpass=None,
             ifRate=2.4e6,
             requirements=["dump1090"],
@@ -190,7 +214,7 @@ class Modes(object):
         DigitalMode(
             "ism",
             "ISM",
-            underlying=["empty"],
+            configs=["empty"],
             bandpass=Bandpass(-125000, 125000),
             requirements=["ism"],
             service=True,
@@ -199,7 +223,7 @@ class Modes(object):
         DigitalMode(
             "hfdl",
             "HFDL",
-            underlying=["empty"],
+            configs=["empty"],
             bandpass=Bandpass(0, 3000),
             requirements=["dumphfdl"],
             service=True,
@@ -208,7 +232,7 @@ class Modes(object):
         DigitalMode(
             "vdl2",
             "VDL2",
-            underlying=["empty"],
+            configs=["empty"],
             bandpass=Bandpass(-12500, 12500),
             requirements=["dumpvdl2"],
             service=True,

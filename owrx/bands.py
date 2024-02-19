@@ -43,7 +43,7 @@ class Band(object):
                         if not isinstance(m, DigitalMode):
                             logger.warning("%s is not a digital mode, cannot be used with \"underlying\" config", mode)
                             continue
-                        if f_dict["underlying"] not in m.underlying:
+                        if f_dict["underlying"] not in m.configs:
                             logger.warning(
                                 "%s is not a valid underlying mode for %s; skipping",
                                 f_dict["underlying"],

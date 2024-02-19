@@ -45,7 +45,7 @@ var Mode = function(json){
         this.ifRate = json.ifRate;
     }
     if (this.type === 'digimode') {
-        this.underlying = json.underlying;
+        this.configs = json.configs;
         this.secondaryFft = json.secondaryFft;
     }
 };
