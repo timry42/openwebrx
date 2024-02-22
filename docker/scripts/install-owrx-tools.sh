@@ -55,6 +55,18 @@ git checkout 676663b4d796fbadd18dfcae0c3b80eb1b1f9147
 cd ..
 rm -rf pycsdr-eti
 
+git clone https://github.com/jketterl/csdr-sstv.git
+# latest develop as of 2024-02-13 (initial integration)
+cmakebuild csdr-sstv 3976d9cd22fe04f253e30d843e43c7d6622b5240
+
+git clone https://github.com/jketterl/pycsdr-sstv.git
+cd pycsdr-sstv
+# latest develop as of 2024-02-12 (initial integration)
+git checkout b91eeab3673759ec0521f7d1e1d92588d7c7f292
+./setup.py install
+cd ..
+rm -rf pycsdr-sstv
+
 git clone https://github.com/jketterl/codecserver.git
 mkdir -p /usr/local/etc/codecserver
 cp codecserver/conf/codecserver.conf /usr/local/etc/codecserver
