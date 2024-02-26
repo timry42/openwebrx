@@ -821,6 +821,10 @@ SstvMessagePanel.prototype = Object.create(MessagePanel.prototype);
 SstvMessagePanel.prototype.render = function() {
     $(this.el).append($(
         '<div class="sstv-container">' +
+            '<div class="sstv-information">' +
+                '<div class="sstv-vis"></div>' +
+                '<div class="sstv-meta"></div>' +
+            '</div>' +
             '<div class="sstv-canvas-container">' +
                 '<canvas class="sstv-canvas" width="320" height="256"></canvas>' +
             '</div>' +
@@ -836,7 +840,13 @@ SstvMessagePanel.prototype.supportsMessage = function(message) {
 
 SstvMessagePanel.prototype.pushMessage = function(message) {
     if ('vis' in message) {
-        console.info("got vis: " + message.vis);
+        $(this.el).find('.sstv-vis').text('VIS: ' + message.vis);
+    }
+    if ('meta' in message) {
+        var str = Object.entries(message.meta).map(function(entry) {
+            return entry[0] + ': ' + entry[1];
+        }).join('; ');
+        $(this.el).find('.sstv-meta').text(str);
     }
     if ('resolution' in message) {
         console.info("got resolution: ", message.resolution);
@@ -863,6 +873,7 @@ SstvMessagePanel.prototype.pushMessage = function(message) {
 SstvMessagePanel.prototype.clearMessages = function() {
     this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
     this.currentLine = 0;
+    $(this.el).find('.sstv-information > div').empty();
 };
 
 $.fn.sstvMessagePanel = function() {

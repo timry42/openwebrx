@@ -56,12 +56,12 @@ cd ..
 rm -rf pycsdr-eti
 
 git clone https://github.com/jketterl/csdr-sstv.git
-# latest develop as of 2024-02-13 (initial integration)
-cmakebuild csdr-sstv 3976d9cd22fe04f253e30d843e43c7d6622b5240
+# latest develop as of 2024-02-26 (more metadata)
+cmakebuild csdr-sstv 9201b9dd362e4da3d1bf5cd8b7c674c0b0e2b633
 
 git clone https://github.com/jketterl/pycsdr-sstv.git
 cd pycsdr-sstv
-# latest develop as of 2024-02-12 (initial integration)
+# latest develop as of 2024-02-22 (initial integration)
 git checkout b91eeab3673759ec0521f7d1e1d92588d7c7f292
 ./setup.py install
 cd ..

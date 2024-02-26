@@ -1,6 +1,6 @@
 from pycsdr.types import Format
 from owrx.sstv import ImageParser
-from typing import List
+from typing import List, Dict
 from io import BytesIO
 from owrx.reporting import ReportingEngine
 import png
@@ -12,17 +12,19 @@ class PngAdapter(ImageParser):
         self.vis = 0
         self.pixels = 0
         self.lines = 0
+        self.meta = None
         self.image_data = []
         super().__init__()
 
     def getOutputFormat(self) -> Format:
         return Format.CHAR
 
-    def startImage(self, vis: int, pixels: int, lines: int) -> None:
+    def startImage(self, vis: int, pixels: int, lines: int, meta: Dict) -> None:
         self.image_data = []
         self.vis = vis
         self.pixels = pixels
         self.lines = lines
+        self.meta = meta
 
     def processLine(self, line: List[int]) -> None:
         self.image_data += [line]
@@ -38,6 +40,7 @@ class PngAdapter(ImageParser):
             "mode": "SSTV",
             "vis": self.vis,
             "image": base64.b64encode(image_binary).decode('ascii'),
+            "meta": self.meta,
         }
         ReportingEngine.getSharedInstance().spot(spot)
         f.close()

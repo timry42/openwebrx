@@ -3,7 +3,7 @@ from csdr.module import ThreadModule
 import pickle
 import struct
 from abc import ABCMeta, abstractmethod
-from typing import List
+from typing import List, Dict
 
 import logging
 
@@ -16,18 +16,29 @@ class ImageParser(ThreadModule, metaclass=ABCMeta):
         lines = 0
         pixels = 0
         synced = False
+        headerFormat = "@hhhfff"
+        headerSize = struct.calcsize(headerFormat)
         while self.doRun:
             data = self.reader.read()
             if data is None:
                 self.doRun = False
             else:
                 stash += data
-                while not synced and len(stash) >= 10:
+                while not synced and len(stash) >= 4 + headerSize:
                     synced = stash[:4] == bytes(b"SYNC")
                     if synced:
-                        (vis, pixels, lines) = struct.unpack("hhh", stash[4:10])
-                        stash = stash[10:]
-                        self.startImage(vis, pixels, lines)
+                        (vis, pixels, lines, error, offset, visError) = struct.unpack(headerFormat, stash[4:4 + headerSize])
+                        stash = stash[4 + headerSize:]
+                        self.startImage(
+                            vis,
+                            pixels,
+                            lines,
+                            {
+                                "error": error,
+                                "offset": offset,
+                                "visError": visError,
+                            }
+                        )
                     else:
                         # go search for sync... byte by byte.
                         stash = stash[1:]
@@ -44,7 +55,7 @@ class ImageParser(ThreadModule, metaclass=ABCMeta):
         return Format.CHAR
 
     @abstractmethod
-    def startImage(self, vis: int, pixels: int, lines: int) -> None:
+    def startImage(self, vis: int, pixels: int, lines: int, meta: Dict) -> None:
         pass
 
     @abstractmethod
@@ -60,7 +71,7 @@ class SstvParser(ImageParser):
     def getOutputFormat(self) -> Format:
         return Format.CHAR
 
-    def startImage(self, vis: int, pixels: int, lines: int) -> None:
+    def startImage(self, vis: int, pixels: int, lines: int, meta: Dict) -> None:
         logger.debug("got image data: VIS = %i resolution: %i x %i", vis, pixels, lines)
         message = {
             "mode": "SSTV",
@@ -68,7 +79,8 @@ class SstvParser(ImageParser):
             "resolution": {
                 "width": pixels,
                 "height": lines
-            }
+            },
+            "meta": meta,
         }
         self.writer.write(pickle.dumps(message))
 
