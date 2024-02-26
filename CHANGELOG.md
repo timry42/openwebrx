@@ -6,6 +6,7 @@
 - Added decoding of ISM band transmissions using rtl_433
 - Added support for decoding RDS data on WFM broadcasts using redsea decoder
 - Added decoding for DAB broadcast stations using csdr-eti and dablin
+- Added decoding of SSTV transmissions using csdr-sstv
 - Added IPv6 support
 - Added MQTT support
 - New devices supported:
