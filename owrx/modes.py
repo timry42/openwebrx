@@ -165,8 +165,8 @@ class Modes(object):
             "sstv",
             "SSTV",
             configs={
-                "usb": DigitalUnderlyingConfig(bandpass=Bandpass(1100, 2400)),
-                "lsb": DigitalUnderlyingConfig(bandpass=Bandpass(-2400, -1100)),
+                "usb": DigitalUnderlyingConfig(bandpass=Bandpass(1000, 2500)),
+                "lsb": DigitalUnderlyingConfig(bandpass=Bandpass(-2500, -1000)),
             },
             bandpass=Bandpass(1100, 2400),
             requirements=["sstv"],
