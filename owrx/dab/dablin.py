@@ -7,7 +7,7 @@ class DablinModule(ExecModule):
         self.serviceId = 0
         super().__init__(
             Format.CHAR,
-            Format.FLOAT,
+            Format.SHORT,
             self._buildArgs()
         )
 

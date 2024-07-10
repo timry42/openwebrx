@@ -2,10 +2,47 @@ from csdr.chain import Chain
 from abc import ABC, ABCMeta, abstractmethod
 from pycsdr.modules import Writer
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class FixedAudioRateChain(ABC):
     @abstractmethod
     def getFixedAudioRate(self) -> int:
+        pass
+
+
+class DynamicAudioRateListener(ABC):
+    @abstractmethod
+    def onAudioRateChange(self, rate: int):
+        pass
+
+
+class DynamicAudioRateChain(ABC):
+    def __init__(self):
+        self.listeners = []
+        super().__init__()
+
+    def addListener(self, listener: DynamicAudioRateListener):
+        if listener in self.listeners:
+            return
+        self.listeners.append(listener)
+
+    def removeListener(self, listener: DynamicAudioRateListener):
+        if listener not in self.listeners:
+            return
+        self.listeners.remove(listener)
+
+    def fireAudioRateChange(self, rate: int):
+        for listener in self.listeners:
+            try:
+                listener.onAudioRateChange(rate)
+            except:
+                logger.exception("error while sending audio rate change")
+
+    @abstractmethod
+    def getAudioRate(self) -> int:
         pass
 
 

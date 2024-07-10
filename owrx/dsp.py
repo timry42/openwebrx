@@ -5,7 +5,7 @@ from owrx.modes import Modes, DigitalMode
 from csdr.chain import Chain
 from csdr.chain.demodulator import BaseDemodulatorChain, FixedIfSampleRateChain, FixedAudioRateChain, HdAudio, \
     SecondaryDemodulator, DialFrequencyReceiver, MetaProvider, SlotFilterChain, SecondarySelectorChain, \
-    DeemphasisTauChain, DemodulatorError, RdsChain, DabServiceSelector
+    DeemphasisTauChain, DemodulatorError, RdsChain, DabServiceSelector, DynamicAudioRateChain, DynamicAudioRateListener
 from csdr.chain.selector import Selector, SecondarySelector
 from csdr.chain.clientaudio import ClientAudioChain
 from csdr.chain.fft import FftChain
@@ -35,7 +35,7 @@ class ClientDemodulatorSecondaryDspEventClient(ABC):
         pass
 
 
-class ClientDemodulatorChain(Chain):
+class ClientDemodulatorChain(Chain, DynamicAudioRateListener):
     def __init__(self, demod: BaseDemodulatorChain, sampleRate: int, outputRate: int, hdOutputRate: int, audioCompression: str, secondaryDspEventReceiver: ClientDemodulatorSecondaryDspEventClient):
         self.sampleRate = sampleRate
         self.outputRate = outputRate
@@ -101,10 +101,15 @@ class ClientDemodulatorChain(Chain):
 
         if self.demodulator is not None:
             self.demodulator.stop()
+            if isinstance(self.demodulator, DynamicAudioRateChain):
+                self.demodulator.removeListener(self)
 
         self.demodulator = demodulator
 
         self.selector.setOutputRate(self._getSelectorOutputRate())
+
+        if isinstance(self.demodulator, DynamicAudioRateChain):
+            self.demodulator.addListener(self)
 
         clientRate = self._getClientAudioInputRate()
         self.demodulator.setSampleRate(clientRate)
@@ -155,6 +160,8 @@ class ClientDemodulatorChain(Chain):
     def _getClientAudioInputRate(self):
         if isinstance(self.demodulator, FixedAudioRateChain):
             return self.demodulator.getFixedAudioRate()
+        elif isinstance(self.demodulator, DynamicAudioRateChain):
+            return self.demodulator.getAudioRate()
         elif isinstance(self.secondaryDemodulator, FixedAudioRateChain):
             return self.secondaryDemodulator.getFixedAudioRate()
         else:
@@ -394,6 +401,9 @@ class ClientDemodulatorChain(Chain):
         self.rdsRbds = rdsRbds
         if isinstance(self.demodulator, RdsChain):
             self.demodulator.setRdsRbds(self.rdsRbds)
+
+    def onAudioRateChange(self, rate: int):
+        self.clientAudioChain.setInputRate(self._getClientAudioInputRate())
 
 
 class ModulationValidator(OrValidator):
