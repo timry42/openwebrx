@@ -1,0 +1,30 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: openwebrx",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/openwebrx.py"
+        },
+        {
+            "name": "Firefox: client JS",
+            "type": "firefox",
+            "request": "launch",
+            "url": "http://localhost:8073",
+            "webRoot": "${workspaceFolder}/htdocs",
+            "pathMappings": [
+                {
+                    "url": "http://localhost:8073/static",
+                    "path": "${workspaceFolder}/htdocs"
+                }
+            ]
+        }
+    ],
+    "compounds": [
+        {
+            "name": "OpenWebRX (Py + JS)",
+            "configurations": ["Python: openwebrx", "Firefox: client JS"]
+        }
+    ]
+}
