@@ -1,0 +1,165 @@
+{
+    "version": 7,
+    "sdrs": {
+        "rtlsdr": {
+            "name": "RTL-SDR USB Stick",
+            "type": "rtl_sdr",
+            "profiles": {
+                "70cm": {
+                    "name": "70cm Repeaters",
+                    "center_freq": 438800000,
+                    "rf_gain": 29,
+                    "samp_rate": 2400000,
+                    "start_freq": 439275000,
+                    "start_mod": "nfm"
+                },
+                "2m": {
+                    "name": "2m",
+                    "center_freq": 145000000,
+                    "rf_gain": 29,
+                    "samp_rate": 2048000,
+                    "start_freq": 145725000,
+                    "start_mod": "nfm"
+                }
+            }
+        },
+        "airspy": {
+            "name": "Airspy HF+",
+            "type": "airspyhf",
+            "rf_gain": "auto",
+            "profiles": {
+                "20m": {
+                    "name": "20m",
+                    "center_freq": 14150000,
+                    "samp_rate": 384000,
+                    "start_freq": 14070000,
+                    "start_mod": "usb"
+                },
+                "30m": {
+                    "name": "30m",
+                    "center_freq": 10125000,
+                    "samp_rate": 192000,
+                    "start_freq": 10142000,
+                    "start_mod": "usb"
+                },
+                "40m": {
+                    "name": "40m",
+                    "center_freq": 7100000,
+                    "samp_rate": 256000,
+                    "start_freq": 7070000,
+                    "start_mod": "lsb"
+                },
+                "80m": {
+                    "name": "80m",
+                    "center_freq": 3650000,
+                    "samp_rate": 384000,
+                    "start_freq": 3570000,
+                    "start_mod": "lsb"
+                },
+                "49m": {
+                    "name": "49m Broadcast",
+                    "center_freq": 6050000,
+                    "samp_rate": 384000,
+                    "start_freq": 6070000,
+                    "start_mod": "am"
+                }
+            }
+        },
+        "sdrplay": {
+            "name": "SDRPlay RSP2",
+            "type": "sdrplay",
+            "antenna": "Antenna A",
+            "profiles": {
+                "20m": {
+                    "name": "20m",
+                    "center_freq": 14150000,
+                    "rf_gain": 0,
+                    "samp_rate": 500000,
+                    "start_freq": 14070000,
+                    "start_mod": "usb"
+                },
+                "30m": {
+                    "name": "30m",
+                    "center_freq": 10125000,
+                    "rf_gain": 0,
+                    "samp_rate": 250000,
+                    "start_freq": 10142000,
+                    "start_mod": "usb"
+                },
+                "40m": {
+                    "name": "40m",
+                    "center_freq": 7100000,
+                    "rf_gain": 0,
+                    "samp_rate": 500000,
+                    "start_freq": 7070000,
+                    "start_mod": "lsb"
+                },
+                "80m": {
+                    "name": "80m",
+                    "center_freq": 3650000,
+                    "rf_gain": 0,
+                    "samp_rate": 500000,
+                    "start_freq": 3570000,
+                    "start_mod": "lsb"
+                },
+                "49m": {
+                    "name": "49m Broadcast",
+                    "center_freq": 6000000,
+                    "rf_gain": 0,
+                    "samp_rate": 500000,
+                    "start_freq": 6070000,
+                    "start_mod": "am"
+                }
+            }
+        },
+
+        "hackrf": {
+            "name": "HackRF One",
+            "type": "hackrf",
+            "ppm": 0,
+            "profiles": {
+                "70cm": {
+                    "name": "70cm Relaisausgabe",
+                    "center_freq": 439000000,
+                    "rf_gain": "VGA=35,LNA=40,AMP=0",
+                    "samp_rate": 2400000,
+                    "start_freq": 438675000,
+                    "start_mod": "nfm",
+                    "waterfall_min_level": -78,
+                    "lfo_offset": 300
+            },
+            "70cm2": {
+                "name": "70cm Relaiseingabe",
+                "center_freq": 431000000,
+                "rf_gain": "VGA=35,LNA=40,AMP=0",
+                "samp_rate": 2400000,
+                "start_freq": 431000000,
+                "start_mod": "nfm",
+                "waterfall_min_level": -78,
+                "lfo_offset": 300
+            },
+            "70cm3": {
+                "name": "70cm SSB-CW-Baken",
+                "center_freq": 432600000,
+                "rf_gain": "VGA=35,LNA=40,AMP=0",
+                "samp_rate": 1024000,
+                "start_freq": 432200000,
+                "start_mod": "nfm",
+                "waterfall_min_level": -78,
+                "lfo_offset": 300
+            },
+            "2m": {
+                "name": "2m AFu Band",
+                "center_freq": 145000000,
+                "rf_gain": "VGA=35,LNA=40,AMP=0",
+                "samp_rate": 2400000,
+                "start_freq": 145700000,
+                "start_mod": "nfm",
+                "waterfall_min_level": -72,
+                "lfo_offset": 300
+            }
+        }
+    }
+
+    }
+}
