@@ -7,6 +7,8 @@ const rowRate = document.getElementById("row-rate");
 const statusText = document.getElementById("status");
 const stateLight = document.getElementById("state-light");
 const idleMessage = document.getElementById("idle-message");
+const compassFace = document.getElementById("compass-face");
+const compassReading = document.getElementById("compass-reading");
 
 let socket;
 let fftSize = 1024;
@@ -14,6 +16,8 @@ let minimumLevel = -115;
 let maximumLevel = -45;
 let palette = buildPalette(["#05070d", "#132d46", "#146c70", "#f4d35e", "#ee6c4d"]);
 let reconnectTimer;
+let compassHeading;
+let compassRotation = 0;
 
 function connect() {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -46,6 +50,8 @@ function receiveMessage(event) {
             setStatus(message.value, true);
         } else if (message.type === "error") {
             setStatus(message.value, false);
+        } else if (message.type === "compass") {
+            updateCompass(message.value.heading);
         }
         return;
     }
@@ -56,6 +62,23 @@ function receiveMessage(event) {
         drawWaterfallRow(fftData);
         idleMessage.classList.add("hidden");
     }
+}
+
+function updateCompass(heading) {
+    if (!Number.isFinite(heading) || heading < 0 || heading >= 360) {
+        return;
+    }
+    if (compassHeading !== undefined) {
+        const change = ((heading - compassHeading + 540) % 360) - 180;
+        compassRotation -= change;
+    } else {
+        compassRotation = -heading;
+    }
+    compassHeading = heading;
+    const directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+    const direction = directions[Math.round(heading / 45) % directions.length];
+    compassFace.style.transform = `rotate(${compassRotation}deg)`;
+    compassReading.textContent = `${heading.toFixed(1)}° ${direction}`;
 }
 
 function applyConfig(config) {

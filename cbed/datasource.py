@@ -77,3 +77,57 @@ class RandomWaterfallSource:
 
             next_row += 1.0 / self.rows_per_second
             self._stop_event.wait(max(0, next_row - time.monotonic()))
+
+
+class RandomCompassSource:
+    def __init__(self, updates_per_second=4):
+        self.updates_per_second = updates_per_second
+        self._subscribers = set()
+        self._lock = threading.Lock()
+        self._stop_event = threading.Event()
+        self._thread = None
+        self._heading = random.uniform(0, 360)
+        self._random = random.Random()
+
+    def subscribe(self, callback):
+        with self._lock:
+            self._subscribers.add(callback)
+        if not self.running:
+            self.start()
+
+    def unsubscribe(self, callback):
+        with self._lock:
+            self._subscribers.discard(callback)
+
+    @property
+    def running(self):
+        return self._thread is not None and self._thread.is_alive()
+
+    def start(self):
+        if self.running:
+            return
+        self._stop_event.clear()
+        self._thread = threading.Thread(target=self._run, name="random-compass-source", daemon=True)
+        self._thread.start()
+
+    def stop(self):
+        self._stop_event.set()
+        if self._thread is not None:
+            self._thread.join(timeout=2)
+        self._thread = None
+
+    def make_message(self):
+        self._heading = (self._heading + self._random.uniform(-12, 12)) % 360
+        return {"type": "compass", "value": {"heading": round(self._heading, 1) % 360}}
+
+    def _run(self):
+        while not self._stop_event.is_set():
+            message = self.make_message()
+            with self._lock:
+                subscribers = tuple(self._subscribers)
+            for callback in subscribers:
+                try:
+                    callback(message)
+                except (ConnectionError, OSError):
+                    self.unsubscribe(callback)
+            self._stop_event.wait(1.0 / self.updates_per_second)

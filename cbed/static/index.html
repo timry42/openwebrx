@@ -19,6 +19,24 @@
                 <span id="status" role="status">Connecting</span>
             </div>
 
+            <section class="compass-control" aria-labelledby="compass-title">
+                <div class="compass-heading">
+                    <span class="eyebrow">Random heading</span>
+                    <h2 id="compass-title">Compass</h2>
+                </div>
+                <div class="compass-dial" aria-hidden="true">
+                    <span class="compass-arrow"></span>
+                    <div class="compass-face" id="compass-face">
+                        <span class="cardinal north">N</span>
+                        <span class="cardinal east">E</span>
+                        <span class="cardinal south">S</span>
+                        <span class="cardinal west">W</span>
+                    </div>
+                    <span class="compass-pin"></span>
+                </div>
+                <output class="compass-reading" id="compass-reading" aria-live="polite">--.-°</output>
+            </section>
+
             <label for="row-rate">Rows per second</label>
             <input id="row-rate" type="text" inputmode="numeric" value="12" autocomplete="off">
             <button id="start" type="button" disabled>

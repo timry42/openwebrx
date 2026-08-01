@@ -81,6 +81,16 @@ def read_binary_frame(reader, attempts=4):
     return None
 
 
+def read_compass_message(reader, attempts=4):
+    for _ in range(attempts):
+        opcode, payload = read_frame(reader)
+        if opcode == 0x1:
+            message = json.loads(payload)
+            if message.get("type") == "compass":
+                return message
+    return None
+
+
 class WaterfallServerTest(unittest.TestCase):
     def setUp(self):
         self.application = WaterfallApplication()
@@ -105,6 +115,17 @@ class WaterfallServerTest(unittest.TestCase):
         self.assertIsNotNone(binary_payload)
         self.assertEqual(binary_payload[0], 0x01)
         self.assertEqual(len(binary_payload), 1 + self.application.source.fft_size * 4)
+        client.close()
+
+    def test_handshake_starts_compass_updates(self):
+        client, reader = connect_client(self.server.server_address)
+        complete_handshake(client, reader)
+
+        message = read_compass_message(reader)
+
+        self.assertIsNotNone(message)
+        self.assertGreaterEqual(message["value"]["heading"], 0)
+        self.assertLess(message["value"]["heading"], 360)
         client.close()
 
     def test_multiple_clients_share_stream_and_late_joiners_receive_it(self):

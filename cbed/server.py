@@ -6,7 +6,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
-from cbed.datasource import RandomWaterfallSource
+from cbed.datasource import RandomCompassSource, RandomWaterfallSource
 from cbed.websocket import OPCODE_TEXT, WebSocketClosed, WebSocketConnection
 
 
@@ -17,6 +17,7 @@ STATIC_DIRECTORY = Path(__file__).with_name("static")
 class WaterfallApplication:
     def __init__(self):
         self.source = RandomWaterfallSource()
+        self.compass_source = RandomCompassSource()
 
     def config_message(self):
         return {
@@ -50,10 +51,12 @@ class WaterfallApplication:
             pass
         finally:
             self.source.unsubscribe(connection.send_binary)
+            self.compass_source.unsubscribe(connection.send_json)
             connection.close()
 
     def close(self):
         self.source.stop()
+        self.compass_source.stop()
 
     def _websocket_loop(self, connection):
         handshake_complete = False
@@ -70,6 +73,7 @@ class WaterfallApplication:
                 )
                 connection.send_json({"type": "status", "value": status})
                 self.source.subscribe(connection.send_binary)
+                self.compass_source.subscribe(connection.send_json)
                 handshake_complete = True
                 continue
 
