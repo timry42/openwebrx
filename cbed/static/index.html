@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CBED Waterfall</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <main class="workspace">
+        <aside class="control-panel">
+            <header>
+                <span class="eyebrow">CBED</span>
+                <h1>Waterfall source</h1>
+            </header>
+
+            <div class="connection-state">
+                <span class="state-light" id="state-light" aria-hidden="true"></span>
+                <span id="status" role="status">Connecting</span>
+            </div>
+
+            <label for="row-rate">Rows per second</label>
+            <input id="row-rate" type="text" inputmode="numeric" value="12" autocomplete="off">
+            <button id="start" type="button" disabled>
+                <span class="play-icon" aria-hidden="true"></span>
+                Start
+            </button>
+        </aside>
+
+        <section class="receiver" aria-label="Radio spectrum waterfall">
+            <div class="receiver-header">
+                <div>
+                    <span class="eyebrow">Live spectrum</span>
+                    <h2>145.000 MHz</h2>
+                </div>
+                <div class="level-key" aria-label="Signal color scale">
+                    <span>-115 dB</span>
+                    <span class="level-gradient"></span>
+                    <span>-45 dB</span>
+                </div>
+            </div>
+            <div class="frequency-scale" aria-hidden="true">
+                <span>143.8</span><span>144.4</span><span>145.0</span><span>145.6</span><span>146.2 MHz</span>
+            </div>
+            <div class="waterfall-frame">
+                <canvas id="waterfall"></canvas>
+                <div class="idle-message" id="idle-message">Press Start to generate spectrum data</div>
+            </div>
+        </section>
+    </main>
+    <script src="/app.js"></script>
+</body>
+</html>
